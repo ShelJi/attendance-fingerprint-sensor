@@ -1,0 +1,40 @@
+# Copy this file to settings.toml (same folder) and fill in real values.
+# settings.toml is CircuitPython's official secrets mechanism — read at boot
+# via os.getenv() in attendance_device.py — and is gitignored, unlike this
+# example template.
+
+WIFI_SSID = "your-wifi-ssid"
+WIFI_PASSWORD = "your-wifi-password"
+
+# LAN IP (or hostname) of the machine running the MQTT broker and Django's
+# `manage.py run_mqtt_consumer` — "localhost" only works if this were running
+# on the Pico itself, which it isn't, so use the broker machine's real IP.
+MQTT_BROKER_HOST = "192.168.1.10"
+MQTT_BROKER_PORT = 1883
+MQTT_USERNAME = ""
+MQTT_PASSWORD = ""
+
+# Must exactly match a Device.device_id already registered via the /devices
+# admin page — an unregistered device's events are rejected by the backend.
+DEVICE_ID = "pico-01"
+
+
+
+WIFI_SSID = "iot kids"
+WIFI_PASSWORD = "bright kidoos"
+
+MQTT_BROKER_HOST = "192.168.1.10"
+MQTT_BROKER_PORT = 1883
+MQTT_USERNAME = ""
+MQTT_PASSWORD = ""
+
+# Must exactly match a Device.device_id already registered via the /devices
+# admin page — an unregistered device's events are rejected by the backend.
+#DEVICE_ID = "pico-01"
+
+CIRCUITPY_WIFI_SSID = "iot kids"
+CIRCUITPY_WIFI_PASSWORD = "bright kidoos"
+ATTENDANCE_URL = "https://script.google.com/macros/s/AKfycbwVQhaL83vccR_PWKb49wZnbTRQzc7z_zWnzeBVf051OlaAUAU2DnBn2RDfDj_nwCjB-Q/exec"
+DEVICE_ID = "PICO2W-01"
+NTP_TZ_OFFSET = "5"
+

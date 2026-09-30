@@ -1,0 +1,9 @@
+circup install adafruit_fingerprint
+
+circup install adafruit_displayio_ssd1306
+
+circup install adafruit_display_text
+
+circup install adafruit_displayio_ssd1306
+
+circup search ssd1309
