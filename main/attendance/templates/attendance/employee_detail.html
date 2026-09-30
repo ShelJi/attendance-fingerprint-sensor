@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ employee.name }} - Attendance</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 8px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+
+        .total {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .total h2 {
+            margin: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .pagination a,
+        .pagination span {
+            padding: 8px 12px;
+            margin: 2px;
+            border: 1px solid #ddd;
+            text-decoration: none;
+        }
+
+        .back {
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <a class="back" href="{% url 'employee_list' %}">
+        ← Back to Employees
+    </a>
+    <nav>
+        {% include "attendance/components/device_status.html" %}
+    </nav>
+    <!-- Employee information -->
+    <div class="header">
+
+        <h1>{{ employee.name }}</h1>
+
+        <p>
+            <strong>Employee ID:</strong>
+            {{ employee.employee_id }}
+        </p>
+
+        <p>
+            <strong>Fingerprint ID:</strong>
+            {{ employee.fingerprint_id }}
+        </p>
+
+    </div>
+
+
+    <!-- Date filter -->
+    <div class="filter">
+
+        <form method="get">
+
+            <label>
+                Start Date:
+            </label>
+
+            <input
+                type="date"
+                name="start_date"
+                value="{{ start_date }}"
+            >
+
+            <label>
+                End Date:
+            </label>
+
+            <input
+                type="date"
+                name="end_date"
+                value="{{ end_date }}"
+            >
+
+            <button type="submit">
+                Filter
+            </button>
+
+            <a href="{% url 'employee_detail' employee.id %}">
+                Clear
+            </a>
+
+        </form>
+
+    </div>
+
+
+    <!-- Total worked hours -->
+    <div class="total">
+
+        <h2>
+            Total Worked Hours:
+            {{ total_worked }}
+        </h2>
+
+    </div>
+
+
+    <!-- Attendance history -->
+    <table>
+
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Login</th>
+                <th>Logout</th>
+                <th>Worked Hours</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for session in page_obj %}
+
+            <tr>
+
+                <td>
+                    {{ session.login_at|date:"d-m-Y" }}
+                </td>
+
+                <td>
+                    {{ session.login_at|date:"H:i:s" }}
+                </td>
+
+                <td>
+                    {% if session.logout_at %}
+                        {{ session.logout_at|date:"H:i:s" }}
+                    {% else %}
+                        Working...
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if session.worked_hours %}
+                        {{ session.worked_hours }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+
+            </tr>
+
+            {% empty %}
+
+            <tr>
+                <td colspan="4">
+                    No attendance records found.
+                </td>
+            </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+
+    <div class="pagination">
+
+        {% if page_obj.has_previous %}
+
+            <a href="?page=1&start_date={{ start_date }}&end_date={{ end_date }}">
+                First
+            </a>
+
+            <a href="?page={{ page_obj.previous_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}">
+                Previous
+            </a>
+
+        {% endif %}
+
+
+        <span>
+            Page {{ page_obj.number }}
+            of {{ page_obj.paginator.num_pages }}
+        </span>
+
+
+        {% if page_obj.has_next %}
+
+            <a href="?page={{ page_obj.next_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}">
+                Next
+            </a>
+
+            <a href="?page={{ page_obj.paginator.num_pages }}&start_date={{ start_date }}&end_date={{ end_date }}">
+                Last
+            </a>
+
+        {% endif %}
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>

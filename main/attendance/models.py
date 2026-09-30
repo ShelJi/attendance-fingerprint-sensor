@@ -1,3 +1,5 @@
+from datetime import timedelta, timezone
+
 from django.db import models
 
 
@@ -18,6 +20,11 @@ class AttendanceSession(models.Model):
     )
     login_at = models.DateTimeField()
     logout_at = models.DateTimeField(null=True, blank=True)
+    
+    worked_hours = models.DurationField(
+        null=True,
+        blank=True,
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -29,3 +36,29 @@ class AttendanceSession(models.Model):
     def __str__(self):
         status = "Active" if self.is_active else "Completed"
         return f"{self.employee.employee_id} - {self.login_at} - {status}"
+
+
+class AttendanceDevice(models.Model):
+    device_id = models.CharField(
+        max_length=100,
+        unique=True,
+    )
+
+    last_seen = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    def __str__(self):
+        return self.device_id
+
+    @property
+    def is_online(self):
+        if self.last_seen is None:
+            return False
+
+        return timezone.now() - self.last_seen < timedelta(minutes=2)

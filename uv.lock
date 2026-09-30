@@ -34,6 +34,7 @@ dependencies = [
     { name = "circup" },
     { name = "django" },
     { name = "mpremote" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -41,6 +42,7 @@ requires-dist = [
     { name = "circup", specifier = ">=3.1.0" },
     { name = "django", specifier = ">=6.1.1" },
     { name = "mpremote", specifier = ">=1.29.0" },
+    { name = "requests", specifier = ">=2.34.2" },
 ]
 
 [[package]]

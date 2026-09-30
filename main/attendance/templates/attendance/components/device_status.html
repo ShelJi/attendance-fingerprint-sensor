@@ -1,0 +1,67 @@
+{% comment %} <div class="device-status">
+    <span
+        style="
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background:
+                {% if device.is_online %}
+                    green
+                {% else %}
+                    red
+                {% endif %};
+        "
+    ></span>
+
+    <span>
+        {{ device.device_id }}
+    </span>
+
+    <span>
+        {% if device.is_online %}
+            Online
+        {% else %}
+            Offline
+        {% endif %}
+    </span>
+</div> {% endcomment %}
+
+<div class="device-status">
+
+    {% if device %}
+
+        <span
+            style="
+                display:inline-block;
+                width:10px;
+                height:10px;
+                border-radius:50%;
+                background-color:
+                {% if device.is_online %}
+                    #22c55e
+                {% else %}
+                    #ef4444
+                {% endif %};
+            "
+        ></span>
+
+        <span>
+            {{ device.device_id }}
+        </span>
+
+        <span>
+            {% if device.is_online %}
+                Online
+            {% else %}
+                Offline
+            {% endif %}
+        </span>
+
+    {% else %}
+
+        <span>Device not registered</span>
+
+    {% endif %}
+
+</div>
