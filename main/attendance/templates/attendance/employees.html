@@ -87,6 +87,9 @@
             
         <nav>
             {% include "attendance/components/device_status.html" %}
+            <a href="{% url 'employee_create' %}">
+                + Create Employee
+            </a>
         </nav>
 
         {% for item in employee_data %}

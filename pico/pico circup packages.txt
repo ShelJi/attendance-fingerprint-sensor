@@ -7,3 +7,5 @@ circup install adafruit_display_text
 circup install adafruit_displayio_ssd1306
 
 circup search ssd1309
+
+circup install adafruit_requests

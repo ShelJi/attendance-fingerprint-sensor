@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import employee_list, fingerprint_scan, employee_detail, device_status
+from .views import employee_create, employee_list, fingerprint_scan, employee_detail, device_status
 
 
 urlpatterns = [
@@ -25,5 +25,11 @@ urlpatterns = [
         "device/status/",
         device_status,
         name="device_status",
+    ),
+    
+    path(
+        "employees/create/",
+        employee_create,
+        name="employee_create",
     ),
 ]

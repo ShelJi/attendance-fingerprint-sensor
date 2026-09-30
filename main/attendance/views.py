@@ -16,6 +16,11 @@ from django.contrib.auth.decorators import login_required
 
 from .models import AttendanceDevice
 
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+
+from .forms import EmployeeForm
+
 
 
 @csrf_exempt
@@ -252,3 +257,29 @@ def device_status(request):
         "status": "online",
         "last_seen": device.last_seen,
     })
+
+
+@login_required
+def employee_create(request):
+
+    if request.method == "POST":
+        form = EmployeeForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return redirect("employee_list")
+
+    else:
+        form = EmployeeForm()
+
+    return render(
+        request,
+        "attendance/employee_create.html",
+        {
+            "form": form,
+        },
+    )
+    
+    
+    
+    
