@@ -16,7 +16,7 @@ import adafruit_fingerprint
 # ---------------- NETWORK ----------------
 WIFI_SSID = "iot kids"
 WIFI_PASSWORD = "bright kidoos"
-BACKEND_URL = "http://10.102.15.236"
+BACKEND_URL = "http://10.102.15.236:8000"
 DEVICE_ID = "attendance-01"
 
 # ---------------- API URLS ----------------
@@ -1503,7 +1503,8 @@ print(
     BACKEND_URL
 )
 print(
-    "SSL: Enabled"
+    "SSL:",
+    "Enabled" if BACKEND_URL.startswith("https") else "Disabled (HTTP)"
 )
 print(
     "--------------------------------"
