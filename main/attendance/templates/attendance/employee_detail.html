@@ -1,182 +1,109 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ employee.name }} - Attendance</title>
+{% extends "attendance/base.html" %}
 
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            background: #f5f5f5;
-        }
+{% block title %}{{ employee.name }} — Attendance{% endblock %}
 
-        .container {
-            max-width: 1100px;
-            margin: auto;
-        }
+{% block nav_employees %}active{% endblock %}
 
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+{% block content %}
 
-        .filter {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
+    <!-- BACK LINK -->
 
-        input {
-            padding: 8px;
-            margin-right: 10px;
-        }
-
-        button {
-            padding: 8px 15px;
-            cursor: pointer;
-        }
-
-        .total {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .total h2 {
-            margin: 0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th,
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-            text-align: left;
-        }
-
-        th {
-            background: #eee;
-        }
-
-        .pagination {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .pagination a,
-        .pagination span {
-            padding: 8px 12px;
-            margin: 2px;
-            border: 1px solid #ddd;
-            text-decoration: none;
-        }
-
-        .back {
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-
-    <a class="back" href="{% url 'employee_list' %}">
+    <a class="back-link" href="{% url 'employee_list' %}" id="back-to-employees">
         ← Back to Employees
     </a>
-    <nav>
-        {% include "attendance/components/device_status.html" %}
-    </nav>
-    <!-- Employee information -->
-    <div class="header">
-
-        <h1>{{ employee.name }}</h1>
-
-        <p>
-            <strong>Employee ID:</strong>
-            {{ employee.employee_id }}
-        </p>
-
-        <p>
-            <strong>Fingerprint ID:</strong>
-            {{ employee.fingerprint_id }}
-        </p>
-
-    </div>
 
 
-    <!-- Date filter -->
-    <div class="filter">
+    <!-- EMPLOYEE INFO -->
 
-        <form method="get">
+    <div class="page-header">
 
-            <label>
-                Start Date:
-            </label>
+        <div>
+            <h1>{{ employee.name }}</h1>
+            <p>
+                Employee ID: <strong>{{ employee.employee_id }}</strong>
+                &nbsp;•&nbsp;
+                Fingerprint ID:
+                <strong style="color: var(--accent-light);">{{ employee.fingerprint_id }}</strong>
+            </p>
+        </div>
 
-            <input
-                type="date"
-                name="start_date"
-                value="{{ start_date }}"
-            >
-
-            <label>
-                End Date:
-            </label>
-
-            <input
-                type="date"
-                name="end_date"
-                value="{{ end_date }}"
-            >
-
-            <button type="submit">
-                Filter
-            </button>
-
-            <a href="{% url 'employee_detail' employee.id %}">
-                Clear
-            </a>
-
-        </form>
+        {% if device and device.is_online %}
+            <div class="device-badge online">
+                <span class="dot"></span>
+                Online
+            </div>
+        {% else %}
+            <div class="device-badge offline">
+                <span class="dot"></span>
+                Offline
+            </div>
+        {% endif %}
 
     </div>
 
 
-    <!-- Total worked hours -->
-    <div class="total">
+    <!-- DATE FILTER -->
 
-        <h2>
-            Total Worked Hours:
-            {{ total_worked }}
-        </h2>
+    <form method="get" class="filter-bar" id="date-filter-form">
 
-    </div>
+        <label for="start_date">Start</label>
+        <input
+            type="date"
+            name="start_date"
+            id="start_date"
+            value="{{ start_date }}"
+        >
+
+        <label for="end_date">End</label>
+        <input
+            type="date"
+            name="end_date"
+            id="end_date"
+            value="{{ end_date }}"
+        >
+
+        <button type="submit" class="btn btn-primary" id="btn-filter">
+            Filter
+        </button>
+
+        <a href="{% url 'employee_detail' employee.id %}" class="btn btn-secondary" id="btn-clear-filter">
+            Clear
+        </a>
+
+    </form>
 
 
-    <!-- Attendance history -->
-    <table>
+    <!-- TOTAL WORKED -->
 
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Login</th>
-                <th>Logout</th>
-                <th>Worked Hours</th>
-            </tr>
-        </thead>
+    <section class="section">
+        <div class="cards-grid" style="grid-template-columns: 1fr;">
+            <div class="stat-card" style="display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div class="stat-label">Total Worked Hours</div>
+                    <div class="stat-value" style="font-size: 26px;">{{ total_worked }}</div>
+                </div>
+                <span style="font-size: 40px; opacity: 0.3;">⏱</span>
+            </div>
+        </div>
+    </section>
 
-        <tbody>
+
+    <!-- ATTENDANCE TABLE -->
+
+    <div class="glass-table-wrap">
+
+        <table class="glass-table" id="attendance-table">
+
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Login</th>
+                    <th>Logout</th>
+                    <th>Worked Hours</th>
+                </tr>
+            </thead>
+
+            <tbody>
 
             {% for session in page_obj %}
 
@@ -187,14 +114,20 @@
                 </td>
 
                 <td>
-                    {{ session.login_at|date:"H:i:s" }}
+                    <span class="badge badge-login">
+                        {{ session.login_at|date:"H:i:s" }}
+                    </span>
                 </td>
 
                 <td>
                     {% if session.logout_at %}
-                        {{ session.logout_at|date:"H:i:s" }}
+                        <span class="badge badge-logout">
+                            {{ session.logout_at|date:"H:i:s" }}
+                        </span>
                     {% else %}
-                        Working...
+                        <span class="badge badge-working">
+                            Working...
+                        </span>
                     {% endif %}
                 </td>
 
@@ -202,7 +135,7 @@
                     {% if session.worked_hours %}
                         {{ session.worked_hours }}
                     {% else %}
-                        -
+                        <span style="color: var(--text-muted);">—</span>
                     {% endif %}
                 </td>
 
@@ -211,49 +144,51 @@
             {% empty %}
 
             <tr>
-                <td colspan="4">
+                <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
                     No attendance records found.
                 </td>
             </tr>
 
             {% endfor %}
 
-        </tbody>
+            </tbody>
 
-    </table>
+        </table>
+
+    </div>
 
 
-    <!-- Pagination -->
+    <!-- PAGINATION -->
+
     {% if page_obj.has_other_pages %}
 
-    <div class="pagination">
+    <div class="pagination" id="pagination">
 
         {% if page_obj.has_previous %}
 
-            <a href="?page=1&start_date={{ start_date }}&end_date={{ end_date }}">
+            <a href="?page=1&start_date={{ start_date }}&end_date={{ end_date }}" id="page-first">
                 First
             </a>
 
-            <a href="?page={{ page_obj.previous_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}">
-                Previous
+            <a href="?page={{ page_obj.previous_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}" id="page-prev">
+                ← Prev
             </a>
 
         {% endif %}
 
 
-        <span>
-            Page {{ page_obj.number }}
-            of {{ page_obj.paginator.num_pages }}
+        <span class="current">
+            {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
         </span>
 
 
         {% if page_obj.has_next %}
 
-            <a href="?page={{ page_obj.next_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}">
-                Next
+            <a href="?page={{ page_obj.next_page_number }}&start_date={{ start_date }}&end_date={{ end_date }}" id="page-next">
+                Next →
             </a>
 
-            <a href="?page={{ page_obj.paginator.num_pages }}&start_date={{ start_date }}&end_date={{ end_date }}">
+            <a href="?page={{ page_obj.paginator.num_pages }}&start_date={{ start_date }}&end_date={{ end_date }}" id="page-last">
                 Last
             </a>
 
@@ -263,7 +198,4 @@
 
     {% endif %}
 
-</div>
-
-</body>
-</html>
+{% endblock %}

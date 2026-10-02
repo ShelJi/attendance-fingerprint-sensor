@@ -1,179 +1,132 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "attendance/base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% block title %}Employees — Attendance System{% endblock %}
 
-    <title>Employees</title>
+{% block nav_employees %}active{% endblock %}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+{% block content %}
 
-        body {
-            margin: 0;
-            padding: 40px;
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-        }
+    <!-- HEADER -->
 
-        .container {
-            max-width: 1100px;
-            margin: auto;
-        }
+    <div class="page-header">
 
-        h1 {
-            margin-bottom: 25px;
-        }
+        <div>
+            <h1>Employees</h1>
+            <p>View employees and their latest attendance activity</p>
+        </div>
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-        }
+        <div style="display: flex; align-items: center; gap: 14px;">
 
-        th,
-        td {
-            padding: 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
+            {% if device and device.is_online %}
+                <div class="device-badge online">
+                    <span class="dot"></span>
+                    Online
+                </div>
+            {% else %}
+                <div class="device-badge offline">
+                    <span class="dot"></span>
+                    Offline
+                </div>
+            {% endif %}
 
-        th {
-            background: #222;
-            color: white;
-        }
-
-        .login {
-            color: green;
-            font-weight: bold;
-        }
-
-        .logout {
-            color: red;
-            font-weight: bold;
-        }
-
-        .empty {
-            color: #888;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="container">
-
-    <h1>Employees</h1>
-
-    <table>
-
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Employee ID</th>
-                <th>Fingerprint ID</th>
-                <th>Last Interaction</th>
-                <th>Date & Time</th>
-                <th>Total Worked Hours</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            
-        <nav>
-            {% include "attendance/components/device_status.html" %}
-            <a href="{% url 'employee_create' %}">
-                + Create Employee
+            <a
+                href="{% url 'employee_create' %}"
+                class="btn btn-primary"
+                id="btn-add-employee"
+            >
+                ➕ Add Employee
             </a>
-        </nav>
 
-        {% for item in employee_data %}
+        </div>
 
-            <tr>
+    </div>
 
-                <td>
-                    <a href="{% url 'employee_detail' item.employee.id %}">
-                        {{ item.employee.name }}
-                    </a>
-                </td>
 
-                <td>
-                    {{ item.employee.employee_id }}
-                </td>
+    <!-- TABLE -->
 
-                <td>
-                    {{ item.employee.fingerprint_id }}
-                </td>
+    <div class="glass-table-wrap">
 
-                <td>
+        <table class="glass-table" id="employees-table">
 
-                    {% if item.last_action == "Login" %}
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Employee ID</th>
+                    <th>Fingerprint ID</th>
+                    <th>Last Activity</th>
+                    <th>Date & Time</th>
+                    <th>Worked Hours</th>
+                </tr>
+            </thead>
 
-                        <span class="login">
-                            LOGIN
+            <tbody>
+
+            {% for item in employee_data %}
+
+                <tr>
+
+                    <td>
+                        <a href="{% url 'employee_detail' item.employee.id %}" id="employee-link-{{ item.employee.id }}">
+                            {{ item.employee.name }}
+                        </a>
+                    </td>
+
+                    <td>
+                        {{ item.employee.employee_id }}
+                    </td>
+
+                    <td>
+                        <span style="color: var(--accent-light); font-weight: 600;">
+                            {{ item.employee.fingerprint_id }}
                         </span>
+                    </td>
 
-                    {% elif item.last_action == "Logout" %}
-
-                        <span class="logout">
-                            LOGOUT
-                        </span>
-
-                    {% else %}
-
-                        <span class="empty">
-                            No attendance
-                        </span>
-
-                    {% endif %}
-
-                </td>
-
-                <td>
-
-                    {% if item.last_time %}
-                        {{ item.last_time|date:"d-m-Y h:i A" }}
-                    {% else %}
-                        -
-                    {% endif %}
-
-                </td>
-
-                <td>
-                    {% if item.last_time %}
-                        {% if item.employee.attendance_sessions.last.worked_hours %}
-                            {{ item.employee.attendance_sessions.last.worked_hours }}
+                    <td>
+                        {% if item.last_action == "Login" %}
+                            <span class="badge badge-login">LOGIN</span>
+                        {% elif item.last_action == "Logout" %}
+                            <span class="badge badge-logout">LOGOUT</span>
                         {% else %}
-                            Working...
+                            <span class="badge badge-empty">No attendance</span>
                         {% endif %}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
+                    </td>
 
-            </tr>
+                    <td>
+                        {% if item.last_time %}
+                            {{ item.last_time|date:"d-m-Y h:i A" }}
+                        {% else %}
+                            <span style="color: var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
 
-        {% empty %}
+                    <td>
+                        {% if item.last_time %}
+                            {% if item.employee.attendance_sessions.last.worked_hours %}
+                                {{ item.employee.attendance_sessions.last.worked_hours }}
+                            {% else %}
+                                <span class="badge badge-working">Working...</span>
+                            {% endif %}
+                        {% else %}
+                            <span style="color: var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
 
-            <tr>
-                <td colspan="5">
-                    No employees found.
-                </td>
-            </tr>
+                </tr>
 
-        {% endfor %}
+            {% empty %}
 
-        </tbody>
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        No employees found. Click "Add Employee" to get started.
+                    </td>
+                </tr>
 
-    </table>
+            {% endfor %}
 
-</div>
+            </tbody>
 
-</body>
+        </table>
 
-</html>
+    </div>
+
+{% endblock %}
