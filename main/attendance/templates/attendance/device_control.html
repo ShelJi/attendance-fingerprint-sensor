@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Fingerprint Device Control</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6f8;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .device-status {
+            padding: 10px 16px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+
+        .online {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .offline {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+
+        .card p {
+            color: #666;
+            font-size: 14px;
+            min-height: 40px;
+        }
+
+        .button {
+            width: 100%;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            background: #111827;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button:hover {
+            background: #374151;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .danger:hover {
+            background: #b91c1c;
+        }
+
+        .input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            margin-bottom: 10px;
+        }
+
+        .result {
+            margin-top: 30px;
+            background: #111827;
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            min-height: 100px;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+
+        <div>
+            <h1>Fingerprint Device</h1>
+            <p>Manage AS608 fingerprint sensor</p>
+        </div>
+
+        <div class="device-status">
+
+            {% if device and device.is_online %}
+                <span class="online">● Online</span>
+            {% else %}
+                <span class="offline">● Offline</span>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <div class="grid">
+
+        <!-- LIST IDS -->
+
+        <div class="card">
+
+            <h2>📋 Fingerprint IDs</h2>
+
+            <p>
+                View all registered fingerprint IDs.
+            </p>
+
+            <button
+                class="button"
+                onclick="sendCommand('LIST_IDS')">
+                View IDs
+            </button>
+
+        </div>
+
+
+        <!-- SENSOR INFO -->
+
+        <div class="card">
+
+            <h2>ℹ️ Sensor Information</h2>
+
+            <p>
+                View AS608 sensor information.
+            </p>
+
+            <button
+                class="button"
+                onclick="sendCommand('INFO')">
+                Get Information
+            </button>
+
+        </div>
+
+
+        <!-- SUMMARY -->
+
+        <div class="card">
+
+            <h2>📊 Database Summary</h2>
+
+            <p>
+                Show fingerprint database statistics.
+            </p>
+
+            <button
+                class="button"
+                onclick="sendCommand('SUMMARY')">
+                View Summary
+            </button>
+
+        </div>
+
+
+        <!-- ENROLL -->
+
+        <div class="card">
+
+            <h2>➕ Enroll</h2>
+
+            <p>
+                Register a new fingerprint.
+            </p>
+
+            <input
+                id="enroll_id"
+                class="input"
+                type="number"
+                min="1"
+                max="127"
+                placeholder="Fingerprint ID">
+
+            <button
+                class="button"
+                onclick="sendEnroll()">
+                Enroll Fingerprint
+            </button>
+
+        </div>
+
+
+        <!-- AUTO ENROLL -->
+
+        <div class="card">
+
+            <h2>🤖 Automatic Enroll</h2>
+
+            <p>
+                Automatically find an available fingerprint ID and enroll.
+            </p>
+
+            <button
+                class="button"
+                onclick="sendCommand('ENROLL_AUTO')">
+                Start Auto Enrollment
+            </button>
+
+        </div>
+
+
+        <!-- VERIFY -->
+
+        <div class="card">
+
+            <h2>🔍 Verify</h2>
+
+            <p>
+                Verify a fingerprint against the sensor database.
+            </p>
+
+            <button
+                class="button"
+                onclick="sendCommand('VERIFY')">
+                Verify Finger
+            </button>
+
+        </div>
+
+
+        <!-- DELETE -->
+
+        <div class="card">
+
+            <h2>🗑️ Delete</h2>
+
+            <p>
+                Delete a fingerprint from the sensor.
+            </p>
+
+            <input
+                id="delete_id"
+                class="input"
+                type="number"
+                min="1"
+                max="127"
+                placeholder="Fingerprint ID">
+
+            <button
+                class="button danger"
+                onclick="sendDelete()">
+                Delete Fingerprint
+            </button>
+
+        </div>
+
+
+        <!-- REPLACE -->
+
+        <div class="card">
+
+            <h2>🔄 Replace</h2>
+
+            <p>
+                Replace an existing fingerprint.
+            </p>
+
+            <input
+                id="replace_id"
+                class="input"
+                type="number"
+                min="1"
+                max="127"
+                placeholder="Fingerprint ID">
+
+            <button
+                class="button"
+                onclick="sendReplace()">
+                Replace Fingerprint
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="result">
+
+        <strong>Device Response</strong>
+
+        <pre id="result">
+Waiting for command...
+        </pre>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    async function waitForCommand(commandId) {
+
+    for (let i = 0; i < 60; i++) {
+
+        await new Promise(
+            resolve => setTimeout(
+                resolve,
+                1000
+            )
+        );
+
+        const response = await fetch(
+            "{% url 'device_control_result' %}" +
+            "?command_id=" +
+            commandId
+        );
+
+        const data = await response.json();
+
+        if (data.status === "completed") {
+
+            showResult(
+                JSON.stringify(
+                    data.result,
+                    null,
+                    2
+                )
+            );
+
+            return;
+        }
+
+        if (data.status === "failed") {
+
+            showResult(
+                JSON.stringify(
+                    data.result,
+                    null,
+                    2
+                )
+            );
+
+            return;
+        }
+    }
+
+    showResult(
+        "Command timed out."
+    );
+}
+
+
+async function sendCommand(command, fingerprintId = null) {
+
+    showResult(
+        "Sending " + command + "..."
+    );
+
+    try {
+
+        const response = await fetch(
+            "{% url 'device_control_command' %}",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+
+                body: JSON.stringify({
+                    command: command,
+                    fingerprint_id: fingerprintId
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+
+            showResult(
+                JSON.stringify(
+                    data,
+                    null,
+                    2
+                )
+            );
+
+            return;
+        }
+
+        showResult(
+            "Command queued...\n\n" +
+            "Waiting for device..."
+        );
+
+        await waitForCommand(
+            data.command_id
+        );
+
+    } catch (error) {
+
+        showResult(
+            "Error: " + error
+        );
+    }
+}
+
+
+async function sendEnroll() {
+
+    const id = document.getElementById("enroll_id").value;
+
+    if (!id) {
+        alert("Enter fingerprint ID");
+        return;
+    }
+
+    await sendCommandWithID(
+        "ENROLL",
+        id
+    );
+}
+
+
+async function sendDelete() {
+
+    const id = document.getElementById("delete_id").value;
+
+    if (!id) {
+        alert("Enter fingerprint ID");
+        return;
+    }
+
+    if (!confirm(
+        "Delete fingerprint ID " + id + "?"
+    )) {
+        return;
+    }
+
+    await sendCommandWithID(
+        "DELETE",
+        id
+    );
+}
+
+
+async function sendReplace() {
+
+    const id = document.getElementById("replace_id").value;
+
+    if (!id) {
+        alert("Enter fingerprint ID");
+        return;
+    }
+
+    await sendCommandWithID(
+        "REPLACE",
+        id
+    );
+}
+
+
+async function sendCommandWithID(command, id) {
+    showResult(
+        "Sending " + command + " command..."
+    );
+
+    try {
+        const response = await fetch(
+            "{% url 'device_control_command' %}",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({
+                    command: command,
+                    fingerprint_id: Number(id)
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!data.success) {
+            showResult(
+                JSON.stringify(data, null, 2)
+            );
+            return;
+        }
+
+        showResult(
+            "Command queued...\n\n" +
+            "Waiting for device..."
+        );
+
+        await waitForCommand(data.command_id);
+
+    } catch (error) {
+        showResult(
+            "Error: " + error
+        );
+    }
+}
+
+
+function showResult(text) {
+
+    document.getElementById("result").textContent = text;
+
+}
+
+
+function getCookie(name) {
+
+    let cookieValue = null;
+
+    if (document.cookie && document.cookie !== "") {
+
+        const cookies = document.cookie.split(";");
+
+        for (let cookie of cookies) {
+
+            cookie = cookie.trim();
+
+            if (cookie.startsWith(name + "=")) {
+
+                cookieValue = decodeURIComponent(
+                    cookie.substring(name.length + 1)
+                );
+
+                break;
+            }
+        }
+    }
+
+    return cookieValue;
+}
+
+</script>
+
+</body>
+</html>

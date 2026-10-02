@@ -62,3 +62,53 @@ class AttendanceDevice(models.Model):
             return False
 
         return timezone.now() - self.last_seen < timedelta(minutes=2)
+    
+    
+class DeviceCommand(models.Model):
+    COMMAND_CHOICES = [
+        ("LIST_IDS", "List IDs"),
+        ("ENROLL", "Enroll"),
+        ("ENROLL_AUTO", "Automatic Enroll"),
+        ("DELETE", "Delete"),
+        ("REPLACE", "Replace"),
+        ("VERIFY", "Verify"),
+        ("SUMMARY", "Database Summary"),
+        ("INFO", "Sensor Information"),
+    ]
+
+    device = models.ForeignKey(
+        AttendanceDevice,
+        on_delete=models.CASCADE,
+        related_name="commands",
+    )
+
+    command = models.CharField(
+        max_length=30,
+        choices=COMMAND_CHOICES,
+    )
+
+    fingerprint_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        default="pending",
+    )
+
+    result = models.JSONField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+    
+    

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Attendance Dashboard</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6f8;
+            color: #111827;
+        }
+
+        .layout {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 250px;
+            background: #111827;
+            color: white;
+            padding: 25px 16px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        .logo {
+            font-size: 21px;
+            font-weight: bold;
+            padding: 0 12px 30px;
+        }
+
+        .logo span {
+            color: #60a5fa;
+        }
+
+        .nav-title {
+            font-size: 11px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin: 20px 12px 8px;
+            letter-spacing: 1px;
+        }
+
+        .nav-link {
+            display: block;
+            text-decoration: none;
+            color: #d1d5db;
+            padding: 11px 12px;
+            border-radius: 7px;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .nav-link:hover {
+            background: #1f2937;
+            color: white;
+        }
+
+        .logout {
+            position: absolute;
+            bottom: 25px;
+            left: 16px;
+            right: 16px;
+            background: #1f2937;
+        }
+
+        /* MAIN */
+
+        .main {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            padding: 35px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 7px 0 0;
+            color: #6b7280;
+        }
+
+        .device {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px 18px;
+        }
+
+        .online {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .offline {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        /* CARDS */
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(220px, 1fr));
+            gap: 18px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 22px;
+            text-decoration: none;
+            color: inherit;
+            transition: 0.15s;
+        }
+
+        .card:hover {
+            border-color: #9ca3af;
+            transform: translateY(-2px);
+        }
+
+        .icon {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            margin: 0 0 7px;
+            font-size: 17px;
+        }
+
+        .card p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* FINGERPRINT */
+
+        .fingerprint-card {
+            border-left: 4px solid #2563eb;
+        }
+
+        /* RESPONSIVE */
+
+        @media (max-width: 800px) {
+
+            .sidebar {
+                width: 210px;
+            }
+
+            .main {
+                margin-left: 210px;
+                width: calc(100% - 210px);
+                padding: 20px;
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+            }
+
+            .layout {
+                display: block;
+            }
+
+            .main {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .logout {
+                position: static;
+                margin-top: 15px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="layout">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            <span>Attendance</span> System
+        </div>
+
+
+        <div class="nav-title">
+            Dashboard
+        </div>
+
+        <a
+            href="{% url 'dashboard' %}"
+            class="nav-link"
+        >
+            🏠 Dashboard
+        </a>
+
+
+        <div class="nav-title">
+            Employees
+        </div>
+
+        <a
+            href="{% url 'employee_list' %}"
+            class="nav-link"
+        >
+            👥 Employees
+        </a>
+
+        <a
+            href="{% url 'employee_create' %}"
+            class="nav-link"
+        >
+            ➕ Add Employee
+        </a>
+
+
+        <div class="nav-title">
+            Device
+        </div>
+
+        <a
+            href="{% url 'device_status' %}"
+            class="nav-link"
+        >
+            📡 Device Status
+        </a>
+
+        <a
+            href="{% url 'device_control' %}"
+            class="nav-link"
+        >
+            🔐 Fingerprint Control
+        </a>
+
+
+        <a
+            href="{% url 'logout' %}"
+            class="nav-link logout"
+        >
+            🚪 Logout
+        </a>
+
+    </aside>
+
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+
+        <!-- HEADER -->
+
+        <div class="header">
+
+            <div>
+
+                <h1>
+                    Dashboard
+                </h1>
+
+                <p>
+                    Attendance and fingerprint device management
+                </p>
+
+            </div>
+
+
+            <div class="device">
+
+                {% if device and device.is_online %}
+
+                    <span class="online">
+                        ● Device Online
+                    </span>
+
+                {% else %}
+
+                    <span class="offline">
+                        ● Device Offline
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+
+        <!-- EMPLOYEE SECTION -->
+
+        <section class="section">
+
+            <div class="section-title">
+                Employee Management
+            </div>
+
+
+            <div class="cards">
+
+                <a
+                    href="{% url 'employee_list' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        👥
+                    </div>
+
+                    <h3>
+                        Employees
+                    </h3>
+
+                    <p>
+                        View employees and their latest attendance activity.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'employee_create' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        ➕
+                    </div>
+
+                    <h3>
+                        Add Employee
+                    </h3>
+
+                    <p>
+                        Create a new employee and assign a fingerprint ID.
+                    </p>
+
+                </a>
+
+            </div>
+
+        </section>
+
+
+        <!-- DEVICE SECTION -->
+
+        <section class="section">
+
+            <div class="section-title">
+                Device Management
+            </div>
+
+
+            <div class="cards">
+
+                <a
+                    href="{% url 'device_status' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        📡
+                    </div>
+
+                    <h3>
+                        Device Status
+                    </h3>
+
+                    <p>
+                        Check device connection and last communication time.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card fingerprint-card"
+                >
+
+                    <div class="icon">
+                        🔐
+                    </div>
+
+                    <h3>
+                        Fingerprint Control
+                    </h3>
+
+                    <p>
+                        Manage the AS608 fingerprint database and sensor.
+                    </p>
+
+                </a>
+
+            </div>
+
+        </section>
+
+
+        <!-- FINGERPRINT SECTION -->
+
+        <section class="section">
+
+            <div class="section-title">
+                Fingerprint Operations
+            </div>
+
+
+            <div class="cards">
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        📋
+                    </div>
+
+                    <h3>
+                        Fingerprint IDs
+                    </h3>
+
+                    <p>
+                        View all fingerprints stored in the sensor.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        ➕
+                    </div>
+
+                    <h3>
+                        Enroll Fingerprint
+                    </h3>
+
+                    <p>
+                        Register a new fingerprint.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        🤖
+                    </div>
+
+                    <h3>
+                        Automatic Enrollment
+                    </h3>
+
+                    <p>
+                        Automatically find an available ID and enroll.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        🗑️
+                    </div>
+
+                    <h3>
+                        Delete Fingerprint
+                    </h3>
+
+                    <p>
+                        Remove a fingerprint from the sensor.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        🔄
+                    </div>
+
+                    <h3>
+                        Replace Fingerprint
+                    </h3>
+
+                    <p>
+                        Replace an existing fingerprint.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        🔍
+                    </div>
+
+                    <h3>
+                        Verify Fingerprint
+                    </h3>
+
+                    <p>
+                        Verify a fingerprint against the sensor.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        📊
+                    </div>
+
+                    <h3>
+                        Database Summary
+                    </h3>
+
+                    <p>
+                        View fingerprint database statistics.
+                    </p>
+
+                </a>
+
+
+                <a
+                    href="{% url 'device_control' %}"
+                    class="card"
+                >
+
+                    <div class="icon">
+                        ℹ️
+                    </div>
+
+                    <h3>
+                        Sensor Information
+                    </h3>
+
+                    <p>
+                        View AS608 sensor information.
+                    </p>
+
+                </a>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+</body>
+
+</html>
