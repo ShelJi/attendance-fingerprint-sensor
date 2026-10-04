@@ -1,0 +1,969 @@
+```html
+{% extends "attendance/base.html" %}
+
+{% block title %}Calendar — Attendance System{% endblock %}
+
+{% block nav_calendar %}active{% endblock %}
+
+{% block content %}
+
+<style>
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .calendar-title h1 {
+        margin: 0;
+    }
+
+    .calendar-title p {
+        margin-top: 6px;
+        color: var(--text-muted);
+    }
+
+    .calendar-navigation {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .calendar-month {
+        min-width: 180px;
+        text-align: center;
+        font-size: 20px;
+        font-weight: 700;
+    }
+
+    .calendar-wrapper {
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+    }
+
+    .calendar-weekdays,
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+    }
+
+    .calendar-weekday {
+        padding: 16px 10px;
+        text-align: center;
+        font-weight: 700;
+        color: var(--text-muted);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .calendar-day {
+        min-height: 125px;
+        padding: 12px;
+        border-right: 1px solid rgba(255,255,255,0.06);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        position: relative;
+        transition: 0.2s ease;
+    }
+
+    .calendar-day:nth-child(7n) {
+        border-right: none;
+    }
+
+    .calendar-day.empty {
+        background: rgba(0,0,0,0.08);
+    }
+
+    .calendar-day.has-attendance {
+        cursor: pointer;
+    }
+
+    .calendar-day.has-attendance:hover {
+        background: rgba(255,255,255,0.06);
+        transform: translateY(-1px);
+    }
+
+    .day-number {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .today .day-number {
+        background: var(--accent-light);
+        color: #000;
+    }
+
+    .attendance-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .attendance-count {
+        display: inline-flex;
+        width: fit-content;
+        padding: 4px 9px;
+        border-radius: 20px;
+        background: rgba(80, 200, 120, 0.15);
+        color: #7ee2a8;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .attendance-total {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .click-hint {
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    /* MODAL */
+
+    .attendance-modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        inset: 0;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(6px);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .attendance-modal.show {
+        display: flex;
+    }
+
+    .modal-content {
+        width: min(900px, 100%);
+        max-height: 85vh;
+        overflow-y: auto;
+        background: var(--background, #111);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 20px;
+        box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 22px 25px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        position: sticky;
+        top: 0;
+        background: var(--background, #111);
+        z-index: 2;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+    }
+
+    .modal-header p {
+        margin: 5px 0 0;
+        color: var(--text-muted);
+        font-size: 14px;
+    }
+
+    .modal-close {
+        border: none;
+        background: rgba(255,255,255,0.08);
+        color: inherit;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    .modal-body {
+        padding: 20px 25px 25px;
+    }
+
+    .modal-summary {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .summary-card {
+        padding: 16px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .summary-label {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-bottom: 5px;
+    }
+
+    .summary-value {
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    .attendance-table-wrap {
+        overflow-x: auto;
+    }
+
+    .attendance-modal-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .attendance-modal-table th,
+    .attendance-modal-table td {
+        padding: 13px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .attendance-modal-table th {
+        color: var(--text-muted);
+        font-size: 12px;
+    }
+
+    .employee-name {
+        font-weight: 700;
+    }
+
+    .employee-code {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    .modal-loading,
+    .modal-empty,
+    .modal-error {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-muted);
+    }
+
+    .modal-error {
+        color: #ff8c8c;
+    }
+
+    @media (max-width: 800px) {
+        .calendar-day {
+            min-height: 90px;
+            padding: 8px;
+        }
+
+        .click-hint {
+            display: none;
+        }
+
+        .attendance-total {
+            display: none;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .calendar-weekday {
+            font-size: 11px;
+            padding: 10px 4px;
+        }
+
+        .calendar-day {
+            min-height: 70px;
+        }
+
+        .day-number {
+            width: 26px;
+            height: 26px;
+            font-size: 12px;
+        }
+
+        .attendance-count {
+            font-size: 10px;
+            padding: 3px 6px;
+        }
+
+        .modal-summary {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+<!-- HEADER -->
+
+<div class="calendar-header">
+
+    <div class="calendar-title">
+        <h1>Attendance Calendar</h1>
+        <p>View employee attendance by day</p>
+    </div>
+
+    <div class="calendar-navigation">
+
+        <a
+            href="?year={{ year }}&month={% if month == 1 %}12{% else %}{{ month|add:'-1' }}{% endif %}"
+            class="btn btn-secondary"
+        >
+            ←
+        </a>
+
+        <div class="calendar-month">
+            {{ year }} / {{ month }}
+        </div>
+
+        <a
+            href="?year={{ year }}&month={% if month == 12 %}1{% else %}{{ month|add:'1' }}{% endif %}"
+            class="btn btn-secondary"
+        >
+            →
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- CALENDAR -->
+
+<div class="calendar-wrapper">
+
+    <div class="calendar-weekdays">
+        <div class="calendar-weekday">Sun</div>
+        <div class="calendar-weekday">Mon</div>
+        <div class="calendar-weekday">Tue</div>
+        <div class="calendar-weekday">Wed</div>
+        <div class="calendar-weekday">Thu</div>
+        <div class="calendar-weekday">Fri</div>
+        <div class="calendar-weekday">Sat</div>
+    </div>
+
+    <div class="calendar-grid" id="calendar-grid">
+
+        <!-- JavaScript creates calendar cells here -->
+
+    </div>
+
+</div>
+
+
+<!-- ATTENDANCE MODAL -->
+
+<div
+    class="attendance-modal"
+    id="attendance-modal"
+    onclick="closeModalOutside(event)"
+>
+
+    <div
+        class="modal-content"
+        onclick="event.stopPropagation()"
+    >
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="modal-title">
+                    Attendance
+                </h2>
+
+                <p id="modal-date">
+                    Loading...
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closeAttendanceModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <div
+                id="modal-summary"
+                class="modal-summary"
+                style="display: none;"
+            >
+
+                <div class="summary-card">
+                    <div class="summary-label">
+                        Employees
+                    </div>
+
+                    <div
+                        class="summary-value"
+                        id="modal-employee-count"
+                    >
+                        0
+                    </div>
+                </div>
+
+                <div class="summary-card">
+                    <div class="summary-label">
+                        Total Worked
+                    </div>
+
+                    <div
+                        class="summary-value"
+                        id="modal-total-worked"
+                    >
+                        0h 0m
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div id="modal-loading" class="modal-loading">
+                Loading attendance...
+            </div>
+
+
+            <div
+                id="modal-error"
+                class="modal-error"
+                style="display: none;"
+            >
+                Failed to load attendance.
+            </div>
+
+
+            <div
+                id="modal-empty"
+                class="modal-empty"
+                style="display: none;"
+            >
+                No attendance records for this day.
+            </div>
+
+
+            <div
+                id="modal-table-container"
+                class="attendance-table-wrap"
+                style="display: none;"
+            >
+
+                <table class="attendance-modal-table">
+
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Login</th>
+                            <th>Logout</th>
+                            <th>Worked Hours</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="modal-table-body">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const calendarData = {{ calendar_days|safe }};
+
+const selectedYear = {{ year }};
+const selectedMonth = {{ month }};
+
+const calendarGrid = document.getElementById("calendar-grid");
+
+
+/*
+|--------------------------------------------------------------------------
+| Build Calendar
+|--------------------------------------------------------------------------
+*/
+
+function buildCalendar() {
+
+    calendarGrid.innerHTML = "";
+
+    const firstDay = new Date(
+        selectedYear,
+        selectedMonth - 1,
+        1
+    );
+
+    const lastDay = new Date(
+        selectedYear,
+        selectedMonth,
+        0
+    );
+
+    const daysInMonth = lastDay.getDate();
+
+    const startingDay = firstDay.getDay();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Empty cells before first day
+    |--------------------------------------------------------------------------
+    */
+
+    for (let i = 0; i < startingDay; i++) {
+
+        const emptyCell = document.createElement("div");
+
+        emptyCell.className = "calendar-day empty";
+
+        calendarGrid.appendChild(emptyCell);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Calendar days
+    |--------------------------------------------------------------------------
+    */
+
+    for (let day = 1; day <= daysInMonth; day++) {
+
+        const dateString =
+            `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+        const attendance = calendarData.find(
+            item => item.date === dateString
+        );
+
+
+        const cell = document.createElement("div");
+
+        cell.className = "calendar-day";
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Today
+        |--------------------------------------------------------------------------
+        */
+
+        const today = new Date();
+
+        if (
+            today.getFullYear() === selectedYear &&
+            today.getMonth() + 1 === selectedMonth &&
+            today.getDate() === day
+        ) {
+            cell.classList.add("today");
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Day number
+        |--------------------------------------------------------------------------
+        */
+
+        const dayNumber = document.createElement("div");
+
+        dayNumber.className = "day-number";
+
+        dayNumber.textContent = day;
+
+        cell.appendChild(dayNumber);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Attendance information
+        |--------------------------------------------------------------------------
+        */
+
+        if (attendance) {
+
+            cell.classList.add("has-attendance");
+
+            const summary =
+                document.createElement("div");
+
+            summary.className =
+                "attendance-summary";
+
+
+            const count =
+                document.createElement("span");
+
+            count.className =
+                "attendance-count";
+
+            count.textContent =
+                `${attendance.employee_count} employee${attendance.employee_count !== 1 ? "s" : ""}`;
+
+            summary.appendChild(count);
+
+
+            const total =
+                document.createElement("div");
+
+            total.className =
+                "attendance-total";
+
+            total.textContent =
+                formatSeconds(
+                    attendance.total_worked_seconds
+                ) + " worked";
+
+            summary.appendChild(total);
+
+
+            const hint =
+                document.createElement("div");
+
+            hint.className =
+                "click-hint";
+
+            hint.textContent =
+                "";
+
+            summary.appendChild(hint);
+
+
+            cell.appendChild(summary);
+
+
+            cell.addEventListener(
+                "click",
+                () => openAttendanceModal(dateString)
+            );
+        }
+
+
+        calendarGrid.appendChild(cell);
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Format seconds
+|--------------------------------------------------------------------------
+*/
+
+function formatSeconds(seconds) {
+
+    if (!seconds) {
+        return "0h 0m";
+    }
+
+    const hours =
+        Math.floor(seconds / 3600);
+
+    const minutes =
+        Math.floor((seconds % 3600) / 60);
+
+    return `${hours}h ${minutes}m`;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Open Modal
+|--------------------------------------------------------------------------
+*/
+
+async function openAttendanceModal(date) {
+
+    const modal =
+        document.getElementById("attendance-modal");
+
+    const loading =
+        document.getElementById("modal-loading");
+
+    const error =
+        document.getElementById("modal-error");
+
+    const empty =
+        document.getElementById("modal-empty");
+
+    const table =
+        document.getElementById("modal-table-container");
+
+    const summary =
+        document.getElementById("modal-summary");
+
+
+    modal.classList.add("show");
+
+
+    document.getElementById("modal-title").textContent =
+        "Attendance";
+
+    document.getElementById("modal-date").textContent =
+        formatDisplayDate(date);
+
+
+    loading.style.display = "block";
+    error.style.display = "none";
+    empty.style.display = "none";
+    table.style.display = "none";
+    summary.style.display = "none";
+
+
+    document.getElementById(
+        "modal-table-body"
+    ).innerHTML = "";
+
+
+    try {
+
+        const response = await fetch(
+            `{% url 'calendar_day_data' %}?date=${date}`
+        );
+
+
+        if (!response.ok) {
+            throw new Error("Request failed");
+        }
+
+
+        const data =
+            await response.json();
+
+
+        loading.style.display = "none";
+
+
+        if (!data.success) {
+            throw new Error(
+                data.error || "Unknown error"
+            );
+        }
+
+
+        document.getElementById(
+            "modal-employee-count"
+        ).textContent =
+            data.employee_count;
+
+
+        document.getElementById(
+            "modal-total-worked"
+        ).textContent =
+            data.total_worked;
+
+
+        summary.style.display = "grid";
+
+
+        if (
+            !data.employees ||
+            data.employees.length === 0
+        ) {
+
+            empty.style.display = "block";
+
+            return;
+        }
+
+
+        const tbody =
+            document.getElementById(
+                "modal-table-body"
+            );
+
+
+        data.employees.forEach(employee => {
+
+            const row =
+                document.createElement("tr");
+
+
+            const employeeCell =
+                document.createElement("td");
+
+            employeeCell.innerHTML = `
+                <div class="employee-name">
+                    ${escapeHtml(employee.name)}
+                </div>
+
+                <div class="employee-code">
+                    ${escapeHtml(employee.employee_code)}
+                </div>
+            `;
+
+
+            const loginCell =
+                document.createElement("td");
+
+            loginCell.innerHTML = `
+                <span class="badge badge-login">
+                    ${employee.login_at}
+                </span>
+            `;
+
+
+            const logoutCell =
+                document.createElement("td");
+
+
+            if (employee.logout_at) {
+
+                logoutCell.innerHTML = `
+                    <span class="badge badge-logout">
+                        ${employee.logout_at}
+                    </span>
+                `;
+
+            } else {
+
+                logoutCell.innerHTML = `
+                    <span class="badge badge-working">
+                        Working...
+                    </span>
+                `;
+            }
+
+
+            const workedCell =
+                document.createElement("td");
+
+            workedCell.textContent =
+                employee.worked_hours || "—";
+
+
+            row.appendChild(employeeCell);
+            row.appendChild(loginCell);
+            row.appendChild(logoutCell);
+            row.appendChild(workedCell);
+
+            tbody.appendChild(row);
+        });
+
+
+        table.style.display = "block";
+
+    } catch (err) {
+
+        console.error(err);
+
+        loading.style.display = "none";
+
+        error.style.display = "block";
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Format date
+|--------------------------------------------------------------------------
+*/
+
+function formatDisplayDate(dateString) {
+
+    const date =
+        new Date(dateString + "T00:00:00");
+
+    return date.toLocaleDateString(
+        "en-IN",
+        {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+        }
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Close Modal
+|--------------------------------------------------------------------------
+*/
+
+function closeAttendanceModal() {
+
+    document
+        .getElementById("attendance-modal")
+        .classList.remove("show");
+}
+
+
+function closeModalOutside(event) {
+
+    if (
+        event.target.id ===
+        "attendance-modal"
+    ) {
+        closeAttendanceModal();
+    }
+}
+
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (event.key === "Escape") {
+            closeAttendanceModal();
+        }
+
+    }
+);
+
+
+/*
+|--------------------------------------------------------------------------
+| Escape HTML
+|--------------------------------------------------------------------------
+*/
+
+function escapeHtml(value) {
+
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Initialize
+|--------------------------------------------------------------------------
+*/
+
+buildCalendar();
+
+</script>
+
+{% endblock %}

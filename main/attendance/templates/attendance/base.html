@@ -842,6 +842,22 @@
                 <span class="icon">🏠</span>
                 Dashboard
             </a>
+            <a
+                href="{% url 'calendar' %}"
+                class="nav-link {% block nav_calendar %}{% endblock %}"
+                id="nav-calendar"
+            >
+                <span class="icon">📅</span>
+                Calendar
+            </a>
+            <a
+                href="{% url 'attendance_report' %}"
+                class="nav-link {% block nav_attendance_report %}{% endblock %}"
+                id="nav-attendance-report"
+            >
+                <span class="icon">📊</span>
+                Attendance Report
+            </a>
         </div>
 
         <div class="nav-section">

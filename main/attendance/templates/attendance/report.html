@@ -1,0 +1,477 @@
+```html
+{% extends "attendance/base.html" %}
+
+{% block title %}Attendance Report — Attendance System{% endblock %}
+
+{% block nav_reports %}active{% endblock %}
+
+{% block content %}
+
+<style>
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+    }
+
+    .report-header h1 {
+        margin: 0;
+    }
+
+    .report-header p {
+        margin-top: 6px;
+        color: var(--text-muted);
+    }
+
+    .report-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-bar {
+        display: flex;
+        align-items: end;
+        gap: 14px;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .filter-group label {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 600;
+    }
+
+    .filter-group input {
+        min-width: 170px;
+    }
+
+    .report-summary {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 25px;
+    }
+
+    .report-stat {
+        padding: 20px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .report-stat-label {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+
+    .report-stat-value {
+        font-size: 25px;
+        font-weight: 700;
+    }
+
+    .report-period {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+
+    .employee-name {
+        font-weight: 600;
+    }
+
+    .employee-id {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    .date-cell {
+        white-space: nowrap;
+    }
+
+    .time-cell {
+        white-space: nowrap;
+    }
+
+    .total-cell {
+        font-weight: 700;
+        color: var(--accent-light);
+        white-space: nowrap;
+    }
+
+    .working-badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 12px;
+        background: rgba(80, 200, 120, 0.15);
+        color: #7ee2a8;
+    }
+
+    .empty-report {
+        text-align: center;
+        padding: 55px 20px;
+        color: var(--text-muted);
+    }
+
+    .empty-report-icon {
+        font-size: 45px;
+        opacity: 0.35;
+        margin-bottom: 10px;
+    }
+
+    @media (max-width: 900px) {
+        .report-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .glass-table-wrap {
+            overflow-x: auto;
+        }
+
+        .glass-table {
+            min-width: 850px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .filter-bar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .filter-group input {
+            width: 100%;
+        }
+
+        .filter-bar .btn {
+            width: 100%;
+        }
+    }
+
+    .employee-report-section {
+        margin-bottom: 30px;
+    }
+
+    .employee-report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        padding: 18px 20px;
+        margin-bottom: 10px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .employee-period-total {
+        font-weight: 700;
+        color: var(--accent-light);
+        white-space: nowrap;
+    }
+</style>
+
+
+<!-- =========================================================
+     HEADER
+========================================================= -->
+
+<div class="report-header">
+
+    <div>
+        <h1>Attendance Report</h1>
+
+        <p>
+            View employee attendance and working hours
+            for a selected period.
+        </p>
+    </div>
+
+    <div class="report-actions">
+
+        <a
+            href="{% url 'attendance_report_pdf' %}?start_date={{ start_date }}&end_date={{ end_date }}"
+            class="btn btn-primary"
+            id="btn-download-pdf"
+        >
+            ⬇ Download PDF
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     DATE FILTER
+========================================================= -->
+
+<form
+    method="get"
+    class="filter-bar"
+    id="report-filter-form"
+>
+
+    <div class="filter-group">
+
+        <label for="start_date">
+            Start Date
+        </label>
+
+        <input
+            type="date"
+            name="start_date"
+            id="start_date"
+            value="{{ start_date }}"
+            required
+        >
+
+    </div>
+
+
+    <div class="filter-group">
+
+        <label for="end_date">
+            End Date
+        </label>
+
+        <input
+            type="date"
+            name="end_date"
+            id="end_date"
+            value="{{ end_date }}"
+            required
+        >
+
+    </div>
+
+
+    <button
+        type="submit"
+        class="btn btn-primary"
+        id="btn-filter"
+    >
+        Filter
+    </button>
+
+
+    <a
+        href="{% url 'attendance_report' %}"
+        class="btn btn-secondary"
+        id="btn-clear-filter"
+    >
+        Current Month
+    </a>
+
+</form>
+
+
+<!-- =========================================================
+     REPORT SUMMARY
+========================================================= -->
+
+<div class="report-summary">
+
+    <div class="report-stat">
+
+        <div class="report-stat-label">
+            Period
+        </div>
+
+        <div
+            class="report-stat-value"
+            style="font-size: 18px;"
+        >
+            {{ start_date }}
+            →
+            {{ end_date }}
+        </div>
+
+    </div>
+
+
+    <div class="report-stat">
+
+        <div class="report-stat-label">
+            Attendance Records
+        </div>
+
+        <div class="report-stat-value">
+            {{ total_records }}
+        </div>
+
+    </div>
+
+
+    <div class="report-stat">
+
+        <div class="report-stat-label">
+            Total Worked Hours
+        </div>
+
+        <div class="report-stat-value">
+            {{ grand_total }}
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     REPORT TABLE
+========================================================= -->
+
+<div class="glass-table-wrap">
+
+    {% if report_data %}
+
+        {% for employee_data in report_data %}
+
+            <div class="employee-report-section">
+
+                <div class="employee-report-header">
+                    <div>
+                        <div class="employee-name">
+                            {{ employee_data.employee.name }}
+                        </div>
+
+                        <div class="employee-id">
+                            Employee ID:
+                            {{ employee_data.employee.employee_id }}
+                        </div>
+                    </div>
+
+                    <div class="employee-period-total">
+                        Period Total:
+                        {{ employee_data.employee_total }}
+                    </div>
+                </div>
+
+
+                <div class="glass-table-wrap">
+
+                    <table class="glass-table">
+
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Login</th>
+                                <th>Logout</th>
+                                <th>Day Worked</th>
+                                <th>Sessions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            {% for item in employee_data.records %}
+
+                                <tr>
+
+                                    <td class="date-cell">
+                                        {{ item.date|date:"d-m-Y" }}
+                                    </td>
+
+                                    <td class="time-cell">
+
+                                        {% if item.login_at %}
+
+                                            <span class="badge badge-login">
+                                                {{ item.login_at|date:"H\:i:s" }}
+                                            </span>
+
+                                        {% else %}
+                                            —
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td class="time-cell">
+
+                                        {% if item.logout_at %}
+
+                                            <span class="badge badge-logout">
+                                                {{ item.logout_at|date:"H\:i:s" }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="working-badge">
+                                                Working...
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td class="total-cell">
+                                        {{ item.worked_hours }}
+                                    </td>
+
+
+                                    <td>
+                                        {{ item.sessions }}
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty-report">
+
+            <div class="empty-report-icon">
+                📊
+            </div>
+
+            <h3>
+                No Attendance Records
+            </h3>
+
+            <p>
+                No attendance records were found
+                for the selected period.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+      
+
+</div>
+
+
+{% endblock %}

@@ -12,6 +12,10 @@ from .views import (
     fingerprint_scan,
     dashboard,
     device_control_result,
+    attendance_report,
+    attendance_report_pdf,
+    calendar_view,
+    calendar_day_data,
 )
 
 
@@ -105,4 +109,29 @@ urlpatterns = [
         device_control_result,
         name="device_control_result",
     ),
+    
+    path(
+        "calendar/",
+        calendar_view,
+        name="calendar",
+    ),
+
+    path(
+        "calendar/day/",
+        calendar_day_data,
+        name="calendar_day_data",
+    ),
+    
+    path(
+        "report/",
+        attendance_report,
+        name="attendance_report",
+    ),
+
+    path(
+        "report/pdf/",
+        attendance_report_pdf,
+        name="attendance_report_pdf",
+    ),
+
 ]
