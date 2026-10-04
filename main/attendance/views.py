@@ -1793,7 +1793,7 @@ def attendance_report(request):
     
     
     
-@login_required
+# @login_required
 def attendance_report_pdf(request):
     today = timezone.localdate()
 
