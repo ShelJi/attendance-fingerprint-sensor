@@ -858,6 +858,7 @@
                 <span class="icon">📊</span>
                 Attendance Report
             </a>
+            <a href="{% url 'work_attendance' %}" class="nav-link"><span class="icon">📍</span>Office & Outdoor</a>
         </div>
 
         <div class="nav-section">
@@ -920,6 +921,14 @@
 
 </div>
 
+{% if request.user.is_authenticated %}
+<div id="attendance-toast" role="status" aria-live="polite" style="display:none;position:fixed;right:16px;bottom:16px;z-index:9999;max-width:min(380px,calc(100vw - 32px));padding:16px 20px;background:#183e32;color:white;border:1px solid #62bb8b;border-radius:16px;box-shadow:0 8px 30px #0005"></div>
+<script>
+(()=>{let cursor=null;let stopped=false;const queue=[];let showing=false;
+function showNext(){if(showing||!queue.length)return;showing=true;const box=document.getElementById('attendance-toast');box.textContent=queue.shift();box.style.display='block';setTimeout(()=>{box.style.display='none';showing=false;showNext();},4500);}
+async function poll(){if(stopped)return;if(document.hidden){setTimeout(poll,5000);return;}let delay=15000;try{const response=await fetch('/api/mobile/notifications/'+(cursor===null?'':'?after='+cursor),{credentials:'same-origin',cache:'no-store'});if(response.status===401||response.status===403){stopped=true;return;}if(!response.ok)throw new Error();const data=await response.json();if(cursor!==null){data.notifications.forEach(item=>queue.push(item.name+' '+(item.action==='login'?'checked in':'checked out')+' · '+new Date(item.occurred_at).toLocaleTimeString()));showNext();}cursor=data.cursor;if(data.has_more)delay=100;}catch{}setTimeout(poll,delay);}poll();})();
+</script>
+{% endif %}
 {% block extra_scripts %}{% endblock %}
 
 </body>

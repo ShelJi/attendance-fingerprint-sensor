@@ -1,4 +1,5 @@
 from django.urls import path
+from .activity import work_attendance
 
 from .views import (
     device_command,
@@ -20,6 +21,7 @@ from .views import (
 
 
 urlpatterns = [
+    path("work-attendance/", work_attendance, name="work_attendance"),
 
     # =========================
     # ATTENDANCE API

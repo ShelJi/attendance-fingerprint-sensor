@@ -1,8 +1,10 @@
 from django.utils import timezone
 from datetime import timedelta
 from attendance.models import AttendanceSession
+from django.db import transaction
 
 
+@transaction.atomic
 def process_scan(employee, occurred_at):
 
     today = timezone.localdate()

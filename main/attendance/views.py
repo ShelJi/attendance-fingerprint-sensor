@@ -11,7 +11,7 @@ from datetime import timedelta
 from django.core.paginator import Paginator
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, render
-from django.contrib.auth.decorators import login_required
+from .decorators import management_required as login_required
 from .models import AttendanceDevice
 from django.shortcuts import redirect, render
 from .forms import EmployeeForm
@@ -22,7 +22,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
 
-from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import render

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "PL admin",
+    "slug": "mobile-app",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/pl-icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F7F7",
+        "foregroundImage": "./assets/pl-adaptive-icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/pl-icon.png"
+    },
+    "scheme": "attendance",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-font"
+    ]
+  }
+}
