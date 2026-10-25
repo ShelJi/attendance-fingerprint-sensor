@@ -47,6 +47,9 @@ from io import BytesIO
 
 
 
+# Preserve the HTML views while allowing mobile routes to serialize their context.
+from .mobile_render import render
+
 # ============================================================
 # ATTENDANCE SCAN API (Pico → Backend)
 # ============================================================

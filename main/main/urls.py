@@ -4,6 +4,7 @@ from django.contrib.auth import views as auth_views
 
 
 urlpatterns = [
+    path("api/mobile/", include("attendance.mobile_api")),
     path("admin/", admin.site.urls),
     path("api/", include("attendance.urls")),
     path("web/", include("attendance.urls")),
