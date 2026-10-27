@@ -39,3 +39,23 @@ test('cooldown responses do not claim attendance succeeded', () => {
   assert.match(attendanceMessage('already_done'), /wait five minutes/);
   assert.match(attendanceMessage('logout'), /checked out/);
 });
+
+test('HTML, empty and malformed responses show a useful server error', async () => {
+  for (const body of ['<!doctype html><html>Sign in</html>', '', '{broken']) {
+    const api = new Api('http://127.0.0.1:8000', async () => new Response(body));
+    await assert.rejects(api.session(), error => error instanceof ApiError && /invalid JSON response.*local Django backend/.test(error.message));
+    await assert.rejects(api.post('auth/login/', {}), ApiError);
+  }
+  const missing = new Api('http://127.0.0.1:8000', async () => new Response('<html>Not Found</html>', { status: 404 }));
+  await assert.rejects(missing.session(), /Mobile API not found/);
+});
+
+test('expired password and logout sessions notify; invalid credentials do not', async () => {
+  let expired = 0;
+  const api = new Api('http://127.0.0.1:8000', async () => Response.json({ error: 'Authentication required' }, { status: 401 }));
+  api.onUnauthorized = () => expired++;
+  for (const path of ['auth/password/', 'auth/logout/']) await assert.rejects(api.post(path, {}), ApiError);
+  assert.equal(expired, 2);
+  await assert.rejects(api.post('auth/login/', {}), ApiError);
+  assert.equal(expired, 2);
+});

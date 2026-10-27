@@ -12,7 +12,7 @@ backfills login/logout events for existing sessions without changing attendance
 times. Those records appear as **Device / legacy** because no mobile Wi-Fi/GPS
 evidence was captured. Existing fingerprint scan/cooldown calculations are reused.
 
-In Django Admin (`/admin/`), add an **Office location** with:
+In the web dashboard or PL admin, open **App configuration**. Select an office or choose **Add office**, use **Use current location** at the office centre (or enter coordinates manually), then save an active office with:
 
 - Name, exact Wi-Fi SSID and router/access-point **BSSID** (not the phone MAC).
 - Office latitude/longitude, allowed radius in metres, and maximum GPS uncertainty.
@@ -21,8 +21,10 @@ In Django Admin (`/admin/`), add an **Office location** with:
 Defaults are a 100 m radius and at most 50 m GPS uncertainty. The server requires
 the reported uncertainty circle to fit inside the office radius. Office Wi-Fi
 and GPS must both match an active configuration; missing configuration fails
-closed. Staff cannot change office policies. Django Admin controls configuration;
-the management app and web workplace view provide read access to attendance data.
+closed. Staff cannot change office policies. Managers can update these settings
+through App configuration; Django Admin also controls the same office records.
+Wi-Fi passwords are not stored. Changes apply to future submissions; disable an old
+configuration to keep its history. Browser GPS requires HTTPS or localhost.
 
 The local database was backed up to an ignored `main/db-backup-*.sqlite3` file
 before applying migrations. Deploy these changes and migrations to the hosted

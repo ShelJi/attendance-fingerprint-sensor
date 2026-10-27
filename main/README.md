@@ -31,6 +31,34 @@ Back up existing data before migration. Migration `0005_employee_user` creates e
 
 Migration `0006_officelocation_attendancenotification_and_more` adds `OfficeLocation`, `AttendanceEvidence` and `AttendanceNotification`. It backfills notification events for existing login/logout timestamps; it does not invent GPS evidence or change historical attendance times. Historical events are classified as Device / legacy. Apply migrations on each deployed database, not only on your development machine, then restart the server process.
 
+## How it works
+
+Django is the shared source of employee accounts and attendance for the website, PL admin, PL attendance and the Pico. Browser pages under `/web/` return HTML; phone endpoints under `/api/mobile/` return JSON. Both mobile apps use Django session cookies and CSRF tokens. The Pico uses the hardware scan, heartbeat and command endpoints under `/api/`.
+
+Creating an employee also creates a linked Django user with the employee ID as its username and `12345` as its default first-time password. The employee form accepts an optional custom password instead. The staff API identifies the employee from that signed-in user, verifies Office/Outdoor evidence, and calls the same attendance service as fingerprint scans. An accepted check-in opens a session; check-out closes it and records worked duration. Each accepted action creates a notification. Calendar and reports read these shared sessions rather than keeping a separate copy of attendance.
+
+## How to use the backend
+
+1. Start Django with the setup commands above and leave its terminal open. Run `createsuperuser` only when a new administrator is needed; reuse your existing account on later starts.
+2. Open `http://127.0.0.1:8000/admin/` on the computer and sign in as the superuser.
+3. Add an **Employee** with a name, employee ID and fingerprint ID. For example, `EMP-001` receives username `EMP-001` and initial password `12345` when Password is blank. Enter a custom password to override it. No separate user creation is needed.
+4. Add the real active **Office location** before staff use Office attendance. Outdoor attendance needs GPS and work details but no office policy.
+5. Configure both phone apps with `http://<computer-Wi-Fi-IP>:8000`. Visit `/api/mobile/auth/session/` at that address in the phone's browser: it must return JSON. A logged-out session is expected to return `authenticated: false`.
+6. Use `/web/dashboard/`, `/web/employees/`, `/web/work-attendance/`, `/web/calendar/` and `/web/report/` for everyday management. Use `/admin/` for direct record/account changes.
+
+| Django admin section | Use it for |
+| --- | --- |
+| Employees | Names, employee IDs, fingerprint IDs and linked accounts |
+| Users / Groups | Login usernames, password resets, active status and permissions |
+| Attendance sessions | Check-in/out timestamps and saved worked durations |
+| Attendance devices / Device commands | Device activation and queued command records |
+| Office locations | Office Wi-Fi/GPS policies |
+| Attendance evidence / Attendance notifications | Submitted verification and attendance event records |
+
+Automatic creation of notification rows runs when a session is saved, but editing historical session timestamps does not rewrite existing notification timestamps or automatically recalculate worked duration. When correcting records manually, check all affected values. For normal sensor operations, issue commands through PL admin or `/web/device/control/`.
+
+Local operation requires no hosted backend. Use `ipconfig` to find the computer's Wi-Fi IP; `127.0.0.1` is only for clients on that same computer. Stop Django with Ctrl+C. Restart it after backend changes when running with `--noreload`.
+
 ## Website routes
 
 | URL | Purpose |
@@ -52,13 +80,26 @@ Open [login](http://127.0.0.1:8000/login/) to begin. Equivalent legacy attendanc
 
 ## Accounts and permissions
 
-Each employee has a linked Django user. When created without an explicitly linked user, their unique `employee_id` becomes the username and initial password. Employee display names are not used for login. Editing the employee does not reset the password or rename the login account. Existing Django user passwords are unchanged.
+Each employee has a linked Django user. When created without an explicitly linked user, their unique `employee_id` becomes the username and the initial password defaults to `12345`. Employee display names are not used for login. The Password field on employee creation/admin forms sets the linked user's hashed password; it is not a separate plaintext database column and is never returned in employee API responses. Custom passwords other than the explicitly allowed initial `12345` use Django's password validation. Employees' own password changes always use Django's normal validation.
 
-Managers can create employees through the website or management API. When using Django admin, its model form includes the required user relationship; create/select a suitable Django user there. Programmatic creation with `Employee.objects.create()` provisions an account automatically; `bulk_create()` bypasses this behavior.
+On the employee edit form, leave Password blank to preserve it or enter a new password to reset it. No existing password is shown. Editing other details does not reset the password or rename the login account. Existing Django user passwords, including older employee-ID defaults, are unchanged until explicitly reset.
+
+Managers can create employees through the website or management API. Django admin also creates the login account automatically: enter the name, employee ID and fingerprint ID. A conflicting username is shown as a form error. Programmatic creation with `Employee.objects.create()` provisions an account automatically; `bulk_create()` bypasses this behavior.
+
+Superusers can manage every attendance model at `/admin/`, including evidence and notifications. Edit employee details under **Employees**; edit usernames, account status, permissions and passwords under **Users**. Changing an employee ID keeps the existing username and password; change the username explicitly under **Users** when needed. Django's relationship protection still prevents deleting records referenced by attendance evidence.
 
 Management views and mobile management APIs allow Django staff/superusers and existing accounts without employee profiles. Ordinary employee accounts can use authentication, password changes and their own attendance API. A management account needs a linked employee profile to register personal attendance. Deleting an employee deactivates their linked account unless it has staff/superuser privileges.
 
-The staff app provides password changes. This project does not add a browser password-change screen or a password-change screen to the management app.
+The staff app and the management app's Settings screen provide password changes. There is no separate browser portal password-change screen.
+
+### Set or reset an employee password
+
+1. Sign in to Django Admin and open **Employees**.
+2. When adding an employee, leave **Password** blank for initial password `12345`, or supply a custom password. Their username is the employee ID.
+3. To reset an existing employee's password, open their record, enter the replacement in **Password**, and save. Leave that field blank when only changing profile details.
+4. Give the employee their username and initial/reset password. They sign in to PL attendance, open **Change password**, enter the current password and the new password twice, then save.
+
+Only a superuser can reset a privileged staff/superuser account through this employee form. Existing passwords cannot be viewed or recovered from the form. Updating the application does not reset any existing accounts, and no database migration is needed for this password-field change.
 
 ## API overview
 
@@ -83,7 +124,7 @@ Personal attendance now accepts an explicit `action` (`login` or `logout`), a `m
 
 ## Configure office policies
 
-Sign in to `/admin/` as a Django administrator with office configuration permissions. Add **Office location** records:
+Sign in as a manager and open **Dashboard → App configuration** at `/web/configuration/`, or **Overview → App configuration** in PL admin. Select an existing office or choose **Add office**. Stand at the office centre and tap **Use current location**, allow location access, then review the coordinates. Manual coordinates also work. Enter the Wi-Fi identifiers and limits below, enable Active, and save. Django administrators can also edit these records in `/admin/` → **Office locations**.
 
 | Field | Meaning / allowed values |
 | --- | --- |
@@ -94,13 +135,13 @@ Sign in to `/admin/` as a Django administrator with office configuration permiss
 | Radius metres | 10–1000 m; defaults to 100 m |
 | Max accuracy metres | 1–100 m; defaults to 50 m |
 
-Add a row per access-point BSSID for offices with multiple radios/access points. Wi-Fi passwords are neither required nor stored. PL admin and the ordinary management website display records; office policy editing is in Django Admin.
+Add a row per access-point BSSID for offices with multiple radios/access points. Wi-Fi passwords are neither required nor stored. Saved changes apply to the next staff office attendance submission. Disable an old configuration to retain its history. Browser location capture requires HTTPS or localhost; on a phone connected to the local backend, use native PL admin or enter coordinates manually.
 
 Office submissions must match an active SSID/BSSID and satisfy both `accuracy <= max_accuracy_meters` and `distance_from_office + accuracy <= radius_meters`. A reported point inside the circle can still fail if its uncertainty extends outside. No active/matching office means rejection, not a fallback acceptance.
 
 Both modes require numeric, finite GPS coordinates and accuracy within 0.1–100 m inclusive. Location capture must be timezone-aware, no older than two minutes and no more than thirty seconds in the future. Reported mock locations are rejected. Outdoor additionally requires a trimmed non-empty place name (maximum 200 characters) and work description (maximum 4000). No photo fields or upload API are used. See [payload examples and the full contract](WORKPLACE_ATTENDANCE.md).
 
-Evidence records store the employee session/action, mode, coordinates, accuracy and capture time; Office adds office/SSID/BSSID, Outdoor adds place/work details. Staff sees only its own evidence; management can view all in `/web/work-attendance/`, PL admin’s bell/activity view, or read-only **Attendance evidence** in Django Admin. References protect verified sessions and office policies from deletion; employee deletion may therefore be refused when protected history exists. Deactivate an old office policy rather than removing audit history.
+Evidence records store the employee session/action, mode, coordinates, accuracy and capture time; Office adds office/SSID/BSSID, Outdoor adds place/work details. Staff sees only its own evidence; management can view all in `/web/work-attendance/`, PL admin’s bell/activity view, or **Attendance evidence** in Django Admin. Evidence is read-only for ordinary administrators; superusers can add, edit and delete it. References protect verified sessions and office policies from deletion; employee deletion may therefore be refused when protected history exists. Deactivate an old office policy rather than removing audit history.
 
 ## Office/outdoor views and date defaults
 

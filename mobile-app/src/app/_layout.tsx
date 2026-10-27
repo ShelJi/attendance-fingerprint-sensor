@@ -12,13 +12,15 @@ function Navigation() {
   const alerts = useAttendanceAlerts(username ? api : null, 'notifications/');
   if (!ready) return <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: c.background }}><Loading /></View>;
   return <><StatusBar style={isDark ? 'light' : 'dark'} /><Stack screenOptions={{ headerTintColor: c.ink, headerStyle: { backgroundColor: c.background }, headerShadowVisible: false, headerTitleStyle: { fontWeight: '600' }, contentStyle: { backgroundColor: c.background } }}>
-    <Stack.Protected guard={!username}><Stack.Screen name="login" options={{ title: 'PL admin', headerRight: () => <IconButton icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} /> }} /><Stack.Screen name="settings" options={{ title: 'Settings' }} /></Stack.Protected>
+    <Stack.Protected guard={!username}><Stack.Screen name="login" options={{ title: 'PL admin', headerRight: () => <IconButton icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} /> }} /></Stack.Protected>
     <Stack.Protected guard={!!username}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="employee/[id]" options={{ title: 'Employee attendance' }} />
       <Stack.Screen name="employee/create" options={{ title: 'Add employee' }} />
       <Stack.Screen name="activity" options={{ title: 'Attendance activity' }} />
+      <Stack.Screen name="configuration" options={{ title: 'App configuration' }} />
     </Stack.Protected>
+    <Stack.Screen name="settings" options={{ title: 'Settings' }} />
 
   </Stack><AttendanceToast text={alerts.text} onDismiss={alerts.dismiss} /></>;
 }

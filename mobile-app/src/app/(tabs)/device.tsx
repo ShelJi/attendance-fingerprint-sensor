@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, Platform, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSession } from '../../session';
 import { Command, Device } from '../../types';
@@ -52,7 +52,11 @@ export default function DeviceScreen() {
       {needsId && <Field label="Fingerprint ID (1–127)" icon="finger-print-outline" placeholder="Enter sensor ID" value={finger} onChangeText={setFinger} keyboardType="number-pad" />}
       <Caption>Enrollment and verification require someone at the sensor.</Caption><ErrorText error={action.error} />
       <Button title={action.busy ? 'Sending…' : 'Send command'} icon="paper-plane-outline" loading={action.busy} disabled={pending || !resource.data?.device?.is_active} danger={selected === 'DELETE' || selected === 'REPLACE'} onPress={() => {
-        if (['DELETE', 'REPLACE'].includes(selected)) Alert.alert('Change sensor fingerprint?', `${selected} will change fingerprint ${finger} on the device.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Continue', style: 'destructive', onPress: send }]);
+        if (['DELETE', 'REPLACE'].includes(selected)) {
+          const message = `${selected} will change fingerprint ${finger} on the device.`;
+          if (Platform.OS === 'web') { if (window.confirm(message)) send(); }
+          else Alert.alert('Change sensor fingerprint?', message, [{ text: 'Cancel', style: 'cancel' }, { text: 'Continue', style: 'destructive', onPress: send }]);
+        }
         else send();
       }} /></Card>
     {command && <Card><Row><IconTile name={pending ? 'hourglass-outline' : 'checkmark-circle-outline'} tone={command.status === 'failed' ? 'coral' : 'teal'} /><Column><Label>Command #{command.command_id}</Label><Caption>Sensor response</Caption></Column></Row><Badge tone={command.status === 'failed' ? 'coral' : pending ? 'amber' : 'teal'}>{command.status}</Badge><View style={{ borderRadius: 16, padding: 16, backgroundColor: c.soft }}><Text selectable style={{ color: c.ink, fontSize: 16, lineHeight: 24 }}>{JSON.stringify(command.result ?? command.message ?? 'Waiting for device…', null, 2)}</Text></View><ErrorText error={pollError} />

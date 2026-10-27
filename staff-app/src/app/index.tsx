@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Api, ApiError, serverUrl } from '../api';
 import { attendanceMessage, type Attendance } from '../attendance';
 import { captureVerification, type Position, type WorkMode } from '../verification';
 import { AttendanceToast, useAttendanceAlerts } from '../notifications';
+import { DEFAULT_BACKEND_URL } from '../settings';
 
 function Field({ label, ...props }: TextInputProps & { label: string }) {
   return <View style={s.field}><Text style={s.label}>{label}</Text><TextInput accessibilityLabel={label} autoCapitalize="none" autoCorrect={false} style={s.input} {...props} /></View>;
@@ -14,7 +15,7 @@ function Button({ title, onPress, disabled, secondary = false }: { title: string
 }
 
 export default function StaffAttendance() {
-  const [server, setServer] = useState(process.env.EXPO_PUBLIC_API_URL || 'https://s.plsofttech.com');
+  const [server, setServer] = useState(DEFAULT_BACKEND_URL);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [api, setApi] = useState<Api | null>(null);
@@ -31,36 +32,41 @@ export default function StaffAttendance() {
   const [description, setDescription] = useState('');
   const [position, setPosition] = useState<Position | null>(null);
   const [verificationStatus, setVerificationStatus] = useState('');
+  const actionLock = useRef(false);
+  const activeClient = useRef<Api | null>(null);
   const alerts = useAttendanceAlerts(api, 'me/notifications/');
   useEffect(() => {
     if (!api || !alerts.text) return;
     let active = true;
-    api.get<Attendance>('me/attendance/').then(data => { if (active) setAttendance(data); }).catch(() => {});
+    api.get<Attendance>('me/attendance/').then(data => { if (active && activeClient.current === api) setAttendance(data); }).catch(() => {});
     return () => { active = false; };
   }, [api, alerts.text]);
   function clearSession() {
+    activeClient.current = null;
     setApi(null); setAttendance(null); setPassword(''); setOldPassword('');
     setNewPassword(''); setConfirmPassword(''); setShowPassword(false);
     setPlace(''); setDescription(''); setPosition(null); setMode('office');
   }
   async function run(work: () => Promise<void>) {
-    if (busy) return;
+    if (actionLock.current) return;
+    actionLock.current = true;
     setBusy(true); setError(''); setMessage('');
     try { await work(); }
     catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) clearSession();
       setError(reason instanceof Error ? reason.message : 'Something went wrong. Please try again.');
-    } finally { setBusy(false); setVerificationStatus(''); }
+    } finally { actionLock.current = false; setBusy(false); setVerificationStatus(''); }
   }
   async function signIn() {
     const origin = serverUrl(server);
     if (!__DEV__ && !origin.startsWith('https://')) throw new Error('Use an HTTPS server for release builds.');
     const client = new Api(origin);
-    client.onUnauthorized = clearSession;
+    client.onUnauthorized = () => { if (activeClient.current === client) clearSession(); };
     await client.login(username.trim(), password);
     try {
       const data = await client.get<Attendance>('me/attendance/');
       if (!data.verification || !Array.isArray(data.evidence)) throw new Error('The backend needs the staff verification update. Ask your admin to deploy it and run migrations.');
+      activeClient.current = client;
       setAttendance(data); setApi(client); setPassword('');
     } catch (reason) {
       await client.logout().catch(() => {});
@@ -99,7 +105,7 @@ export default function StaffAttendance() {
           <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="current-password" editable={!busy} />
           <Button title="Sign in" disabled={busy || !username.trim() || !password} onPress={() => void run(signIn)} />
         </View>
-        <Text style={s.body}>First time? Your employee ID is your username and initial password. Change your password after signing in.</Text>
+        <Text style={s.body}>First time? Your employee ID is your username. Your initial password is 12345 unless your admin set a different one. Change it after signing in.</Text>
       </> : <>
         <Text accessibilityRole="header" style={s.title}>Hello, {attendance.employee.name}.</Text>
         <Text style={s.body}>{attendance.username} · {new Date().toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
@@ -132,6 +138,7 @@ export default function StaffAttendance() {
           <Field label="Confirm new password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry autoComplete="new-password" editable={!busy} />
           <Text style={s.body}>Use at least eight characters and avoid common passwords or your username.</Text>
           <Button title="Save password" disabled={busy || !oldPassword || !newPassword || !confirmPassword} onPress={() => void run(async () => {
+            if (newPassword !== confirmPassword) throw new Error('The new passwords do not match.');
             const data = await api.post<{ csrf_token: string }>('auth/password/', { old_password: oldPassword, new_password1: newPassword, new_password2: confirmPassword });
             api.csrf = data.csrf_token; setOldPassword(''); setNewPassword(''); setConfirmPassword(''); setShowPassword(false); setMessage('Password changed. You’re still signed in.');
           })} />

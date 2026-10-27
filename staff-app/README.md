@@ -30,16 +30,38 @@ Then in `staff-app`:
 
 ```powershell
 npm ci
-npm start
+Copy-Item .env.example .env
 ```
+
+Copy the example only on first setup. Set `.env` to the backend computer's Wi-Fi IP, replacing this example:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://192.168.1.20:8000
+```
+
+Find the IP with `ipconfig` on the computer, then start the staff app:
+
+```powershell
+npm start -- --port 8082 --lan
+```
+
+Leave both this terminal and Django running. Open this app's QR code in a compatible Expo client/build. PL admin can run separately on port 8081; both apps must use Django port 8000 as their backend. Restart Expo and reload the app after editing `.env`. The Server URL field can override the address for the current app session.
+
+## How it works
+
+PL attendance signs in to Django using an employee's linked account. It fetches only that employee's current-day sessions, evidence and attendance notifications. Password changes use the same account and keep the current session signed in. Passwords and server selection are not persisted by this app; reopening it starts from the configured default and asks for sign-in again.
+
+When you submit attendance, the app captures a fresh GPS fix. Office mode also reads the connected Wi-Fi SSID/BSSID; Outdoor mode sends your place name and work description. Django verifies those readings, chooses the employee from the signed-in account and saves its own timestamp. It opens or closes the shared attendance session and returns the updated status. This is the same session history used by fingerprint scans and PL admin.
+
+The app displays immediate feedback for an accepted action and checks your personal event feed while active. A fingerprint check-in/out can therefore appear in this app after polling. Refresh reads current server state; it does not create attendance. There is no offline submission queue or photo requirement.
 
 Use an Android/iOS build for reliable Wi-Fi verification. iOS needs the configured Access Wi-Fi Information entitlement in a signed build; Expo Go may not expose SSID/BSSID. Enter your backend origin on the sign-in screen, or set `EXPO_PUBLIC_API_URL` before starting Expo. On a physical phone use the computer's LAN address rather than `127.0.0.1`. Release builds require HTTPS. Use a distinct origin/session for management and employee accounts during testing.
 
-The default origin is `https://s.plsofttech.com`. For a phone on the same Wi-Fi use an origin such as `http://192.168.1.20:8000`; the Android emulator can use `http://10.0.2.2:8000`. Enter only the origin, without `/api/mobile/`. The app targets native mobile; browser authentication/CORS is not configured.
+The default origin is `http://127.0.0.1:8000`. For a phone on the same Wi-Fi, copy `.env.example` to `.env`, replace the IP with the backend computer's Wi-Fi address and restart Expo; for example `EXPO_PUBLIC_API_URL=http://192.168.1.20:8000`. The Android emulator can use `http://10.0.2.2:8000`. Enter only the origin, without `/api/mobile/`. The app targets native mobile; browser authentication/CORS is not configured.
 
 ## Accounts and sign-in
 
-Each employee's unique `employee_id` is their initial username **and** password. Existing employees receive accounts during migration. New employees created through the management API, web form or `Employee.objects.create()` receive accounts automatically. Django admin's employee form instead exposes the required linked user field; create/select a suitable user there. Names are not used because they need not be unique. Editing an employee does not reset their password or change their login username. Existing Django accounts retain their credentials.
+Each employee's unique `employee_id` is their username. New employees start with password **12345** unless the manager enters a custom password. New employees created through the management API, web form, Django admin or `Employee.objects.create()` receive accounts automatically. Names are not used because they need not be unique. Existing accounts retain their current passwords, including older employee-ID defaults. Editing employee details does not reset their password or change their login username; an administrator can explicitly reset it using the employee form's Password field.
 
 If an employee ID already matches an existing Django username, migration stops without claiming that account or resetting its password. Resolve that username collision before migrating. Account creation should use `Employee.save()` / `objects.create()`, not `bulk_create()`.
 
@@ -55,13 +77,26 @@ Attendance uses server timestamps and the same five-minute cooldown as fingerpri
 4. For another session that day, wait five minutes after check-out before checking in again.
 5. Tap **Refresh attendance** after fingerprint scans or if another client changed attendance. Sign out when done.
 
+To change your password, tap **Change password**, enter your current password and the same new password in both replacement fields, then tap **Save password**. A successful change keeps you signed in. Close password settings to clear unfinished entries. If the session expires, sign in again. Ask the administrator to correct your name, employee ID, fingerprint ID, login username or active status in Django Admin; the staff app edits only your password and attendance submissions.
+
+### First sign-in example
+
+If your administrator creates Employee ID `EMP-001` without entering a custom password:
+
+1. Enter the local backend address on the sign-in screen.
+2. Sign in with Username **EMP-001** and Password **12345**.
+3. Tap **Change password**. Enter `12345` as Current password, then enter the same new password in New password and Confirm new password.
+4. Tap **Save password**. You remain signed in; use the new password on future sign-ins.
+
+If your administrator chose a custom initial password, use that instead of `12345`. Existing accounts keep their current password when the application is updated. If you forget it, ask an administrator to reset it through Django Admin's employee Password field, then change it after signing in again.
+
 Password changes require the current password and matching new-password fields. Django rejects weak replacements, including overly short, common, numeric or overly similar passwords. Changing the initial password is recommended but is not enforced at sign-in.
 
 The backend groups today's activity in `Asia/Kolkata`. An open session from a previous day is not automatically closed. The app requires a network connection and does not queue offline attendance. Server selection and credentials are not persisted by app code; there is no self-service account registration screen.
 
 ## Office attendance: required setup and checks
 
-The backend administrator must first add an active **Office location** in Django Admin (`/admin/`). It contains the exact SSID, router/access-point BSSID, centre coordinates, allowed radius and maximum GPS uncertainty. This is configured in the backend, not entered by staff on each check-in. Add a policy per access point when several BSSIDs serve the office. Do not enter the phone’s MAC or a Wi-Fi password.
+A manager must first add an active office using **Dashboard → App configuration**, PL admin **Overview → App configuration**, or Django Admin (`/admin/`) → **Office locations**. It contains the exact SSID, router/access-point BSSID, centre coordinates, allowed radius and maximum GPS uncertainty. This is configured in the backend, not entered by staff on each check-in. Add a policy per access point when several BSSIDs serve the office. Do not enter the phone’s MAC or a Wi-Fi password.
 
 1. Connect the phone to the configured Wi-Fi.
 2. Enable location services and grant precise foreground location permission.
@@ -135,9 +170,11 @@ Use `npx --yes expo-doctor` for dependency compatibility checks and `npx expo ex
 
 | Symptom | Resolution |
 | --- | --- |
+| Invalid JSON / HTML response | Use the local Django origin on port 8000. Visit `/api/mobile/auth/session/` at that origin from the phone; expect JSON, not a website or Expo page |
+| App still uses a hosted/old address | Restart Expo after editing `.env`, reload the app and check Server URL before signing in |
 | Backend update required / 404 | Deploy backend API changes, apply migrations there, and restart its server |
 | No employee profile linked | Administrator must create/link the employee to the signed-in user |
-| Office mode disabled | Administrator must enable a valid Office location in Django Admin |
+| Office mode disabled | Manager must enable a valid office in App configuration or Django Admin |
 | Office Wi-Fi mismatch | Compare exact SSID and access-point BSSID; a phone MAC is not the BSSID |
 | Wi-Fi details unavailable | Check permissions, actual Wi-Fi connection and location services; use an entitled iOS build |
 | GPS stale/inaccurate/outside radius | Check device clock, precise location and reception; retry with a fresh location |

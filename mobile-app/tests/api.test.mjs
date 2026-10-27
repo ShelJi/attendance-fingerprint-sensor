@@ -31,3 +31,36 @@ test('validation, non-JSON errors, session expiry, and PDF bytes', async () => {
   const pdf = new Api('https://example.com', async () => new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }));
   assert.equal(await (await pdf.response('report/pdf/')).text(), '%PDF-1.7');
 });
+
+test('expired password and logout sessions notify; invalid login does not', async () => {
+  let expired = 0;
+  const api = new Api('https://example.com', async () => Response.json({ error: 'Authentication required' }, { status: 401 }));
+  api.onUnauthorized = () => expired++;
+  for (const path of ['auth/password/', 'auth/logout/']) await assert.rejects(api.post(path, {}), ApiError);
+  assert.equal(expired, 2);
+  await assert.rejects(api.post('auth/login/', {}), ApiError);
+  assert.equal(expired, 2);
+});
+
+test('management access is checked before entering admin', async () => {
+  const employee = new Api('https://example.com', async () => Response.json({ error: 'Management access required' }, { status: 403 }));
+  await assert.rejects(employee.requireManagement(), /Use the staff app/);
+  const manager = new Api('https://example.com', async () => Response.json({ total_employees: 1 }));
+  await manager.requireManagement();
+});
+
+test('HTML and malformed successful responses show a useful error instead of a JSON parse exception', async () => {
+  for (const body of ['<!doctype html><html>Sign in</html>', '', '{broken']) {
+    const api = new Api('https://example.com', async () => new Response(body));
+    for (const request of [() => api.get('auth/session/'), () => api.post('auth/login/', {})]) {
+      await assert.rejects(request, error => error instanceof ApiError && /invalid JSON response.*Check the backend URL/.test(error.message));
+    }
+  }
+});
+
+test('missing deployed mobile routes identify the URL and deployment fix', async () => {
+  const api = new Api('https://example.com', async () => new Response('<html>Not Found</html>', { status: 404 }));
+  await assert.rejects(api.session(), error => error instanceof ApiError && error.status === 404 && error.message.includes('https://example.com/api/mobile/auth/session/') && error.message.includes('deploy/restart'));
+  const missing = new Api('https://example.com', async () => Response.json({ error: 'Not found' }, { status: 404 }));
+  await assert.rejects(missing.get('employees/999/'), /Not found/);
+});

@@ -44,10 +44,31 @@ class MobileApiTests(TestCase):
         url = "/api/mobile/employees/create/"
         response = self.client.post(url, {"name": "Bob", "employee_id": "E2", "fingerprint_id": "2"}, content_type="application/json")
         self.assertEqual(response.status_code, 201)
+        employee = Employee.objects.get(employee_id="E2")
+        self.assertTrue(employee.user.check_password("12345"))
+        self.assertNotIn("password", response.json()["employee"])
         duplicate = self.client.post(url, {"name": "Bob", "employee_id": "E2", "fingerprint_id": "2"}, content_type="application/json")
         self.assertEqual(duplicate.status_code, 400)
         self.assertIn("employee_id", duplicate.json()["errors"])
         self.assertEqual(self.client.post(url, "[]", content_type="application/json").status_code, 400)
+
+    def test_create_with_custom_password_can_login_and_change_it(self):
+        password = "custom-strong-secret-847"
+        response = self.client.post("/api/mobile/employees/create/", {
+            "name": "Bob", "employee_id": "E2", "fingerprint_id": "2", "password": password,
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn("password", response.json()["employee"])
+        staff = Client()
+        self.assertEqual(staff.post("/api/mobile/auth/login/", {"username": "E2", "password": password}, content_type="application/json").status_code, 200)
+        response = staff.post("/api/mobile/auth/password/", {
+            "old_password": password, "new_password1": "replacement-strong-secret-938", "new_password2": "replacement-strong-secret-938",
+        }, content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(staff.get("/api/mobile/auth/session/").json()["authenticated"])
+        employee = Employee.objects.get(employee_id="E2")
+        self.assertFalse(employee.user.check_password(password))
+        self.assertTrue(employee.user.check_password("replacement-strong-secret-938"))
 
     def test_authentication_methods_and_not_found(self):
         self.assertEqual(self.client.post("/api/mobile/dashboard/").status_code, 405)

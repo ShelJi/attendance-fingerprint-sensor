@@ -1,5 +1,6 @@
 from django.urls import path
 from .activity import work_attendance
+from .configuration import app_configuration
 
 from .views import (
     device_command,
@@ -21,6 +22,8 @@ from .views import (
 
 
 urlpatterns = [
+    path("configuration/", app_configuration, name="app_configuration"),
+    path("configuration/<int:office_id>/", app_configuration, name="app_configuration_edit"),
     path("work-attendance/", work_attendance, name="work_attendance"),
 
     # =========================

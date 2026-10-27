@@ -39,6 +39,8 @@ existing 403 response. No CORS configuration is needed for a native mobile clien
 | GET | `employees/` | `employee_data`: employees with last action, time, worked duration |
 | POST | `employees/create/` | JSON name, employee_id, fingerprint_id; 201 employee or 400 errors |
 | GET | `employees/<id>/` | employee, page_obj, total_worked; query start_date, end_date, page |
+| GET, POST | `configuration/offices/` | Management-only: list offices or create office configuration |
+| GET, POST | `configuration/offices/<id>/` | Management-only: read or update an office |
 | GET | `dashboard/` | device, total_employees, today_sessions, active_sessions |
 | GET | `device/control/` | device including is_online |
 | POST | `device/control/command/` | Existing JSON command and optional fingerprint_id; queues command |
@@ -61,7 +63,7 @@ These serve device scanning, heartbeats, command polling and result submission;
 the app controls the device using the authenticated mobile control endpoints.
 ## Employee authentication and self attendance
 
-Employee accounts use their unique employee ID as the initial username and password. Apply migration `0005_employee_user` to provision existing employees. Existing Django account passwords are unchanged. Login/session/logout endpoints work for all active accounts.
+New employee accounts use their unique employee ID as username and `12345` as the default initial password. `POST employees/create/` accepts optional `password` alongside `name`, `employee_id` and `fingerprint_id`; missing/blank password uses `12345`. A supplied custom password is validated and hashed in the linked Django user account, never included in the employee response. Existing Django account passwords are unchanged; historical migration `0005_employee_user` used employee IDs as initial passwords and is not rewritten. Login/session/logout endpoints work for all active accounts.
 
 All paths below are relative to `/api/mobile/`. Use session cookies; fetch `auth/session/` first and send its `csrf_token` as `X-CSRFToken` for POST requests. Login rotates that token, so use the token returned by login thereafter.
 
@@ -202,3 +204,32 @@ method decorators can return HTML; clients must handle a non-JSON error response
 Native mobile requests do not need browser CORS, but production browser clients
 still require appropriate origin/cookie/CSRF configuration. Never embed account
 passwords, Wi-Fi passwords or other secrets in EXPO_PUBLIC environment variables.
+
+## Office app configuration
+
+Managers can GET `configuration/offices/` for `{offices: [...]}` or GET
+`configuration/offices/<id>/` for `{office: {...}}`. POST to the collection creates
+an office (201); POST to its ID updates it (200). Both return `{office: {...}}`.
+Send all form fields on create/update with the session cookie and CSRF token:
+
+```json
+{
+  "name": "Main office",
+  "is_active": true,
+  "wifi_ssid": "Office Wi-Fi",
+  "wifi_bssid": "AA:BB:CC:DD:EE:FF",
+  "latitude": 10.25,
+  "longitude": 76.5,
+  "radius_meters": 100,
+  "max_accuracy_meters": 50
+}
+```
+
+Use actual office coordinates and network identifiers. Latitude must be -90–90,
+longitude -180–180, radius 10–1000 m, and maximum uncertainty 1–100 m. SSID is
+case-sensitive (maximum 32 characters); BSSID must be an access-point MAC and is
+normalized to lowercase. Invalid fields return 400 with `{errors: {...}}`;
+unknown IDs return 404. Staff accounts receive 403, signed-out requests 401.
+No Wi-Fi password is accepted or stored by this form. Saved changes are used by
+the next staff office attendance submission. Set `is_active` to false to disable
+an office without deleting historical evidence.

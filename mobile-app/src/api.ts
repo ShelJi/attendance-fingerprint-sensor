@@ -46,14 +46,22 @@ export class Api {
       else if (data?.errors) message = Object.entries(data.errors).map(([field, errors]) =>
         `${field}: ${(errors as { message: string }[]).map(item => item.message).join(' ')}`).join('\n');
       else if (response.status === 403) message = 'CSRF verification failed. Sign in again to refresh your session.';
-      if (response.status === 401 && !path.startsWith('auth/')) this.onUnauthorized?.();
+      else if (response.status === 404) message = `Mobile API not found at ${this.origin}/api/mobile/${path.split('?')[0]}. Check the backend URL in Settings and deploy/restart the Django backend with the mobile API routes.`;
+      if (response.status === 401 && path !== 'auth/login/') this.onUnauthorized?.();
       throw new ApiError(message, response.status);
     }
     return response;
   }
 
-  async get<T>(path: string): Promise<T> { return (await this.response(path)).json(); }
-  async post<T>(path: string, body: unknown): Promise<T> { return (await this.response(path, body)).json(); }
+  private async json<T>(path: string, body?: unknown): Promise<T> {
+    const response = await this.response(path, body);
+    try { return await response.json(); }
+    catch {
+      throw new ApiError(`The server returned an invalid JSON response for /api/mobile/${path.split('?')[0]}. Check the backend URL in Settings and deploy/restart the Django mobile API.`, response.status);
+    }
+  }
+  async get<T>(path: string): Promise<T> { return this.json<T>(path); }
+  async post<T>(path: string, body: unknown): Promise<T> { return this.json<T>(path, body); }
   async session() {
     const data = await this.get<{ authenticated: boolean; username: string | null; csrf_token: string }>('auth/session/');
     this.csrf = data.csrf_token;
@@ -64,6 +72,13 @@ export class Api {
     const data = await this.post<{ username: string; csrf_token: string }>('auth/login/', { username, password });
     this.csrf = data.csrf_token;
     return data.username;
+  }
+  async requireManagement() {
+    try { await this.get('dashboard/'); }
+    catch (error) {
+      if (error instanceof ApiError && error.status === 403) throw new ApiError('Management access required. Use the staff app for an employee account.', 403);
+      throw error;
+    }
   }
   async logout() { await this.post('auth/logout/', {}); this.csrf = ''; }
 }

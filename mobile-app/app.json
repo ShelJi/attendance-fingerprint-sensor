@@ -7,7 +7,10 @@
     "icon": "./assets/pl-icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "entitlements": {
+        "com.apple.developer.networking.wifi-info": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +27,13 @@
       "expo-router",
       "expo-secure-store",
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PL admin uses location permission when you capture office coordinates or connected Wi-Fi details for attendance configuration."
+        }
+      ]
     ]
   }
 }

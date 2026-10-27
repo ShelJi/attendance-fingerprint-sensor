@@ -19,7 +19,7 @@ class Employee(models.Model):
         with transaction.atomic():
             if not self.user_id:
                 self.user = get_user_model().objects.create_user(
-                    username=self.employee_id, password=self.employee_id,
+                    username=self.employee_id, password="12345",
                 )
             super().save(*args, **kwargs)
 

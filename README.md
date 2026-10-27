@@ -15,8 +15,8 @@ Employee attendance system with a Django web portal and API, a management mobile
 ## How it works
 
 1. A manager creates an employee with a name, unique employee ID and unique fingerprint slot ID.
-2. The backend creates a linked login account. The employee ID is both the initial username and password; existing employees receive accounts through migration `0005_employee_user`.
-3. An administrator configures office Wi-Fi and coordinates in **Django Admin → Office locations**.
+2. The backend creates a linked login account. The employee ID is the username; new employees use initial password `12345` unless the manager enters a different password. Existing accounts keep their current passwords.
+3. An administrator configures office Wi-Fi and coordinates in **Dashboard → App configuration** (also available in PL admin and Django Admin → Office locations).
 4. The employee changes their password in PL attendance, then submits verified Office or Outdoor attendance, or scans an enrolled fingerprint on the device.
 5. Managers view attendance, separate workplace activity, calendar summaries and PDF reports in PL admin or the website. Accepted check-ins/outs also create notification events.
 
@@ -41,17 +41,61 @@ Back up an existing database before migration. If an employee ID already matches
 
 ## Start a mobile app
 
-Install Node.js and npm. In a separate terminal, choose the application:
+Install Node.js and npm. Keep Django running in its own terminal. Find the backend computer's Wi-Fi IPv4 address with `ipconfig`; the examples below use `192.168.1.20`, which you must replace with your actual address.
+
+For **PL admin**, open a second terminal at the repository root:
 
 ```powershell
 cd mobile-app
 npm ci
-npm start
+Copy-Item .env.example .env
 ```
 
-Use `cd staff-app` instead for PL attendance. Both apps use Expo SDK 58 and TypeScript. PL admin can be previewed in a compatible Expo Go client. Reliable staff Wi-Fi verification needs a native build; iOS requires the configured Access Wi-Fi Information entitlement and location permission, which Expo Go may not provide.
+Edit `mobile-app/.env` to contain your computer's address:
 
-Set the management backend in **Settings on the sign-in screen**; sign out first if already in PL admin. Set the staff backend on its sign-in screen. Both default to `https://s.plsofttech.com` and accept `EXPO_PUBLIC_API_URL`. A phone connecting to a local backend needs the computer's LAN IP, such as `http://192.168.1.20:8000`; `127.0.0.1` refers to the phone itself. Release sign-in requires HTTPS. Local changes do not deploy code or migrations to the hosted server.
+```dotenv
+EXPO_PUBLIC_API_URL=http://192.168.1.20:8000
+```
+
+Then run `npm start -- --port 8081 --lan`. For **PL attendance**, open a third terminal at the repository root:
+
+```powershell
+cd staff-app
+npm ci
+Copy-Item .env.example .env
+```
+
+Set `staff-app/.env` to the same backend address, then run `npm start -- --port 8082 --lan`. Copy the example files only on first setup so existing `.env` values are preserved. Scan each terminal's QR code in a compatible Expo Go client, or open its URL in the corresponding development build.
+
+Keep the phone and computer on the same reachable Wi-Fi. Django uses port **8000**; ports **8081/8082** serve the app code, not the attendance API. Keep all three terminals open. Stop each server with Ctrl+C. If the computer's IP changes, update both `.env` files and any saved PL admin backend URL, then restart Expo.
+
+Both apps use Expo SDK 58 and TypeScript. Reliable staff Wi-Fi verification needs a native build; iOS requires the configured Access Wi-Fi Information entitlement and location permission, which Expo Go may not provide.
+
+Set the management backend in **Settings**, available before and after sign-in. Set the staff backend on its sign-in screen. Both default to `http://127.0.0.1:8000` and accept `EXPO_PUBLIC_API_URL` in their own `.env` files. A phone connecting to the local backend needs the computer's LAN IP, such as `http://192.168.1.20:8000`; `127.0.0.1` refers to the phone itself. Restart Expo after changing `.env`. Release sign-in requires HTTPS.
+
+## First use: admin and employee
+
+1. Sign in at [Django admin](http://127.0.0.1:8000/admin/) using the superuser created during setup.
+2. Under **Employees**, add a name, unique employee ID such as `EMP-001`, and a unique fingerprint slot ID. Password is optional: leave it blank for `12345` or enter a custom password. The login account is created automatically with username `EMP-001`.
+3. For office attendance, add an active **Office location** with the real Wi-Fi SSID, access-point BSSID, coordinates and GPS limits. Outdoor attendance does not need an office policy.
+4. Sign in to **PL admin** with the management account. Use People to create/view employees, Device for sensor commands, Calendar for daily attendance, Reports for worked hours/PDFs, and the bell for Office/Outdoor/Device activity. Change your own password under Settings.
+5. Sign in to **PL attendance** with the employee account. Open Change password, enter the current password and a matching new password, then save. Choose In office or Outdoor and submit Verify & check in. Submit Verify & check out when finished, respecting the five-minute interval.
+6. Update employee details in Django Admin → Employees and login usernames, account status or passwords in Users. Editing an employee ID does not rename the existing username or reset its password. A superuser can also manage sessions, devices, commands, offices, evidence and notifications; protected references can prevent deletion.
+
+Both apps and the Pico must point to the same backend to share attendance. Fingerprint scanning additionally requires an enrolled sensor template whose slot matches the employee's fingerprint ID; see the [device setup](pico/README.md).
+
+## Check the local connection
+
+On the phone, open `http://192.168.1.20:8000/api/mobile/auth/session/`, replacing the IP. A working API returns JSON containing `authenticated` and `csrf_token`; `authenticated: false` is normal before sign-in.
+
+| Problem | What to do |
+| --- | --- |
+| Cannot reach the server | Keep Django running on `0.0.0.0:8000`, check the computer's current IP, use the same reachable Wi-Fi and allow inbound access to port 8000 |
+| Invalid JSON / HTML / 404 | Use the local backend origin on port 8000, without `/api/mobile/`; verify the session endpoint above instead of using a website or Expo server URL |
+| App still uses an old address | Update PL admin Settings or the staff sign-in Server URL; restart Expo after editing `.env` and reload the app |
+| Employee cannot open PL admin | Use the superuser/management account there; employee accounts belong in PL attendance |
+| Sign-in says no employee profile | Create the employee and use its linked account; a standalone superuser is not an employee |
+| Office attendance is disabled or rejected | Configure an active office, grant precise location, connect to its Wi-Fi and check the submitted GPS/SSID/BSSID |
 
 ## Workplace verification
 
@@ -80,7 +124,7 @@ Notifications mean **attendance check-in/out**, not account sign-in/sign-out. Ap
 
 1. Back up the backend database and deploy the backend code.
 2. Run migrations on the deployed server and restart its application process.
-3. Configure active Office locations in Django Admin and confirm employee accounts.
+3. Configure active offices through Dashboard → App configuration and confirm employee accounts.
 4. Set both apps to that backend origin; rebuild installed apps for launcher branding and native permission changes.
 5. Test office matching, an incorrect Wi-Fi/location, outdoor submissions, fingerprint scans, role access, notifications and password changes on real phones.
 
@@ -88,13 +132,27 @@ PL admin and PL attendance use the same supplied PL logo. Expo Go retains its ow
 
 ## Accounts and APIs
 
+### Employee passwords
+
+| Action | Password behavior |
+| --- | --- |
+| Create an employee with Password blank | Initial password is `12345`; username is the employee ID |
+| Create an employee with a custom Password | Uses the entered password after validation |
+| Edit an employee with Password blank | Preserves the current password |
+| Enter a Password on the Django admin employee edit form | Resets the linked account's password |
+| Employee changes password in PL attendance | Requires current password and matching valid new passwords; keeps the session signed in |
+
+Example: create employee `EMP-001` with Password blank, then sign in to PL attendance with username `EMP-001` and password `12345`. Tap **Change password**, enter `12345` as the current password, enter the new password twice and tap **Save password**. Future sign-ins use that new password. Existing employees keep their existing password until they or an administrator explicitly change it.
+
+Only a superuser can use the employee edit form to reset a staff/superuser account's password. Employee passwords are saved as hashes in Django's linked user account; the form never reveals a saved password.
+
 - Management access: Django staff/superuser accounts and existing accounts without employee profiles.
 - Employee access: personal attendance and password changes. Ordinary employee accounts cannot access management pages or APIs.
 - Mobile JSON endpoints: `/api/mobile/`; see the [API contract](main/MOBILE_API.md).
 - Hardware HTTP endpoints: `/api/attendance/scan/` and `/api/device/...`.
 - Browser management pages: `/web/`; equivalent legacy routes also exist under `/api/`.
 
-Passwords are hashed by Django. Existing Django credentials are preserved. The initial employee password is predictable by design; employees should change it after first sign-in. No password-change requirement is enforced by the application.
+Passwords are hashed in the linked Django user account, never stored as readable employee-table values or returned by the employee API. The employee form provides a Password field for setting/resetting that account's password. Blank means `12345` for a new employee and preserves the password on edits. Existing accounts are not reset automatically. Employees should change the initial password after first sign-in; no mandatory-change screen is enforced.
 
 ## Validation
 

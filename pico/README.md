@@ -51,6 +51,21 @@ The default UART baud rate is 57600. Check the module specification and adjust `
 
 ## Attendance and commands
 
+### How it works
+
+The AS608 stores fingerprint templates in numbered slots. The Pico searches those templates and sends a recognized slot ID to Django. Django looks up the employee with that fingerprint ID, applies the attendance rules and returns feedback for the OLED. The fingerprint template itself is not uploaded. Heartbeats update the device status, and command polling lets a manager request sensor operations through the backend.
+
+### How to use it with the local backend
+
+1. Start Django on the computer with `.venv/Scripts/python.exe main/manage.py runserver 0.0.0.0:8000` from the repository root.
+2. Find the computer's Wi-Fi IP with `ipconfig`. In your local copy of `phase_6.py`, replace its checked-in backend value with `BACKEND_URL = "http://192.168.1.20:8000"`, using your actual IP. The selected firmware still contains a hosted default; the phone apps' `.env` files do not configure the Pico.
+3. Set the real Wi-Fi values and a stable `DEVICE_ID`, such as `attendance-01`, then copy the script to the board as `code.py`. Keep the board and computer on a reachable Wi-Fi network.
+4. Confirm its heartbeat appears in PL admin → Device. Enroll a finger in a sensor slot from 1–127, and create an employee with that exact fingerprint ID. If using Auto enroll, use the returned slot when creating the employee.
+5. Place the enrolled finger on the reader. Confirm the OLED/backend reports check-in. After at least five minutes, scan again to check out; the closed session appears in the employee history and reports.
+6. To enroll, list, verify, delete or replace a template remotely, choose the command in PL admin → Device, enter the slot if required and send it. Place a finger on the reader to start the command-polling window, then follow the sensor prompts and check the returned result.
+
+Editing an employee's fingerprint ID in Django changes the lookup mapping only; it does not move or enroll a template in the sensor. Keep both sides in sync. Replacing/deleting a template changes the sensor; confirm the intended slot before continuing. If the computer's IP changes, update `BACKEND_URL` on the board too.
+
 The HTTP firmware posts matched slot IDs to `/api/attendance/scan/` and displays the backend's result. It sends heartbeats to `/api/device/status/` about every 30 seconds; the backend considers a device online for two minutes after its last heartbeat.
 
 The backend records the first action as check-in. Check-out requires five minutes of active time, and a new check-in requires five minutes after check-out. These are server rules shared with the staff app. Fingerprint templates stay in the sensor; the backend stores their slot identifiers and attendance records.

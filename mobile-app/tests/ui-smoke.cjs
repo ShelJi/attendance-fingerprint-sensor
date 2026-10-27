@@ -15,6 +15,8 @@ const requests = [];
 let authenticated = false;
 let empty = false;
 let unavailable = false;
+let managementDenied = false;
+let expirePassword = false;
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
   let file = path.resolve(root, '.' + pathname);
@@ -36,11 +38,18 @@ const server = http.createServer((req, res) => {
     requests.push({ key, query: url.search, method: request.method(), body: request.postDataJSON() });
     const headers = { 'Access-Control-Allow-Origin': 'http://127.0.0.1:9123', 'Access-Control-Allow-Credentials': 'true', 'Access-Control-Allow-Headers': 'Content-Type, X-CSRFToken', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (managementDenied && key === 'dashboard/') return route.fulfill({ status: 403, headers, json: { error: 'Management access required' } });
+    if (expirePassword && key === 'auth/password/') {
+      authenticated = false;
+      return route.fulfill({ status: 401, headers, json: { error: 'Authentication required' } });
+    }
     if (unavailable && key === 'dashboard/') return route.fulfill({ status: 503, headers, json: { error: 'Test connection unavailable' } });
     let data;
     if (key === 'auth/session/') data = { authenticated, username: authenticated ? 'Alex' : null, csrf_token: 'test-csrf' };
     if (key === 'auth/login/') { authenticated = true; data = { username: 'Alex', csrf_token: 'test-rotated' }; }
     if (key === 'auth/logout/') { authenticated = false; data = { success: true }; }
+    if (key === 'auth/password/') data = { success: true, csrf_token: 'password-rotated' };
+    if (key === 'notifications/') data = { notifications: [], cursor: 0, has_more: false };
     if (key === 'dashboard/') data = { device, total_employees: 1, today_sessions: 1, active_sessions: 0 };
     if (key === 'employees/') data = { employee_data: empty ? [] : [{ employee: person, last_action: 'Logout', last_time: session.logout_at, worked_hours: session.worked_hours }] };
     if (key === 'employees/create/') data = { employee: person };
@@ -76,6 +85,18 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByText('Hello, Alex', { exact: true }).waitFor();
     await capture('overview-390');
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Backend URL', exact: true }).waitFor();
+    await page.getByLabel('Current password', { exact: true }).fill('test-only');
+    await page.getByLabel('New password', { exact: true }).fill('new-strong-secret');
+    await page.getByLabel('Confirm new password', { exact: true }).fill('different-secret');
+    await page.getByRole('button', { name: 'Save password', exact: true }).click();
+    await page.getByText('The new passwords do not match.', { exact: true }).waitFor();
+    assert.equal(requests.filter(item => item.key === 'auth/password/').length, 0);
+    await page.getByLabel('Confirm new password', { exact: true }).fill('new-strong-secret');
+    await page.getByRole('button', { name: 'Save password', exact: true }).click();
+    await page.getByText('Password updated. You are still signed in.', { exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Current password', { exact: true }).inputValue(), '');
     const screens = [['/', 'Hello, Alex', 'overview'], ['/employees', 'Team directory', 'people'], ['/employee/1', person.name, 'employee'], ['/employee/create', 'Full name', 'create'], ['/calendar', 'Every day tells a story', 'calendar'], ['/device', 'Connected to your workday', 'device'], ['/reports', 'The bigger picture', 'reports'], ['/settings', 'Your workspace, your way', 'settings']];
     for (const width of [320, 390, 430, 844]) {
       await page.setViewportSize({ width, height: width === 844 ? 390 : 844 });
@@ -108,6 +129,17 @@ const server = http.createServer((req, res) => {
     await visit('/device', 'Connected to your workday');
     await page.getByRole('button', { name: 'Send command', exact: true }).click();
     await page.getByText('completed', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Fingerprint ID (1–127)', exact: true }).fill('12');
+    const commandCount = requests.filter(item => item.key === 'device/control/command/').length;
+    page.once('dialog', dialog => dialog.dismiss());
+    await page.getByRole('button', { name: 'Send command', exact: true }).click();
+    assert.equal(requests.filter(item => item.key === 'device/control/command/').length, commandCount);
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Send command', exact: true }).click();
+    await page.getByText('pending', { exact: true }).waitFor();
+    await page.getByText('completed', { exact: true }).waitFor();
+    assert.equal(requests.filter(item => item.key === 'device/control/command/').at(-1).body.command, 'DELETE');
     await visit('/reports', 'The bigger picture');
     await page.getByRole('textbox', { name: 'From', exact: true }).fill('2026-10-25');
     await page.getByRole('textbox', { name: 'To', exact: true }).fill('2026-10-01');
@@ -146,6 +178,29 @@ const server = http.createServer((req, res) => {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByText('Hello, Alex', { exact: true }).waitFor();
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await page.getByText('Welcome back', { exact: true }).waitFor();
+    managementDenied = true;
+    await page.getByRole('textbox', { name: 'Username', exact: true }).fill('Employee');
+    await page.getByLabel('Password', { exact: true }).fill('test-only');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByText('Management access required. Use the staff app for an employee account.', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('tab').count(), 0);
+    await visit('/login', 'Welcome back');
+    assert.equal(await page.getByRole('tab').count(), 0);
+    managementDenied = false;
+    await page.getByRole('textbox', { name: 'Username', exact: true }).fill('Alex');
+    await page.getByLabel('Password', { exact: true }).fill('test-only');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByText('Hello, Alex', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByLabel('Current password', { exact: true }).fill('test-only');
+    await page.getByLabel('New password', { exact: true }).fill('new-strong-secret');
+    await page.getByLabel('Confirm new password', { exact: true }).fill('new-strong-secret');
+    expirePassword = true;
+    await page.getByRole('button', { name: 'Save password', exact: true }).click();
+    await page.getByText('Not signed in', { exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Current password', { exact: true }).count(), 0);
+    await page.getByRole('button', { name: 'Back to sign in', exact: true }).click();
     await page.getByText('Welcome back', { exact: true }).waitFor();
     assert.equal(errors.length, 0, errors.join('\n'));
     assert.ok(requests.some(item => item.key === 'employees/create/' && item.method === 'POST'));

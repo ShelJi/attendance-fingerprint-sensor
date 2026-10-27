@@ -17,7 +17,7 @@ class StaffApiTests(TestCase):
 
     def test_default_credentials_and_no_password_reset_on_edit(self):
         client = Client()
-        self.assertEqual(client.post("/api/mobile/auth/login/", {"username": "E1", "password": "E1"}, content_type="application/json").status_code, 200)
+        self.assertEqual(client.post("/api/mobile/auth/login/", {"username": "E1", "password": "12345"}, content_type="application/json").status_code, 200)
         self.employee.user.set_password("changed-secret")
         self.employee.user.save()
         self.employee.name = "Updated"
@@ -55,13 +55,13 @@ class StaffApiTests(TestCase):
         url = "/api/mobile/auth/password/"
         data = {"old_password": "wrong", "new_password1": "new-strong-secret-847", "new_password2": "new-strong-secret-847"}
         self.assertEqual(self.client.post(url, data, content_type="application/json").status_code, 400)
-        data["old_password"] = "E1"
+        data["old_password"] = "12345"
         response = self.client.post(url, data, content_type="application/json")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(self.client.get("/api/mobile/auth/session/").json()["authenticated"])
         self.employee.user.refresh_from_db()
         self.assertTrue(self.employee.user.check_password(data["new_password1"]))
-        self.assertFalse(self.employee.user.check_password("E1"))
+        self.assertFalse(self.employee.user.check_password("12345"))
 
     def test_csrf_and_anonymous_protection(self):
         client = Client(enforce_csrf_checks=True)

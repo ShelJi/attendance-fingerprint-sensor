@@ -1,0 +1,62 @@
+{% extends "attendance/base.html" %}
+{% block title %}App configuration — Attendance System{% endblock %}
+{% block nav_configuration %}active{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1>App configuration</h1><p>Office location and Wi-Fi used to verify staff attendance.</p></div></div>
+<div style="max-width:800px; display:grid; gap:24px;">
+    <section class="glass-card" aria-labelledby="saved-offices">
+        <h2 id="saved-offices">Office configurations</h2>
+        <p style="margin:12px 0;">Select an office to update it, or add a configuration for another access point.</p>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            {% for item in offices %}<a class="btn btn-secondary" href="{% url 'app_configuration_edit' item.pk %}">{{ item.name }}{% if not item.is_active %} (inactive){% endif %}</a>{% empty %}<p>No office configured yet.</p>{% endfor %}
+            <a class="btn btn-primary" href="{% url 'app_configuration' %}">Add office</a>
+        </div>
+    </section>
+    <section class="glass-card">
+        <h2>{% if office %}Update {{ office.name }}{% else %}Add office configuration{% endif %}</h2>
+        {% if saved %}<p role="status" style="color:var(--success); margin:16px 0;">Configuration saved. Staff attendance will use these settings on the next submission.</p>{% endif %}
+        <p style="margin:16px 0;">Enter the Wi-Fi network name and router/access-point BSSID. A Wi-Fi password is not needed for attendance verification. Connect phones to the network in their device settings. To fill SSID and BSSID automatically, open App configuration in the PL admin phone app and tap Use connected Wi-Fi. Browsers require manual Wi-Fi entry.</p>
+        <button type="button" class="btn btn-secondary" id="current-location">Use current location</button>
+        <p id="location-status" role="status" style="margin:12px 0;"></p>
+        <button type="button" class="btn btn-secondary" id="connected-wifi" aria-controls="wifi-help" aria-expanded="false">Use connected Wi-Fi</button>
+        <p style="margin:12px 0;">Automatic Wi-Fi capture is available in the PL admin phone app.</p>
+        <div id="wifi-help" role="status" hidden style="margin:12px 0;">
+            Browsers cannot read your Wi-Fi SSID or BSSID. Connect a phone running PL admin to your office Wi-Fi or another phone’s hotspot, open App configuration, tap Use connected Wi-Fi, then Save configuration. Select that saved office here to view the updated details. You can also enter both fields manually below.
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            {% for field in form %}<div style="margin-bottom:16px;"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }} {{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+            <p style="margin:16px 0;">Stand at the office centre before capturing GPS. The radius and GPS uncertainty limit apply to every staff office check-in and check-out. Disable an old configuration instead of deleting its history.</p>
+            <button class="btn btn-primary" type="submit">Save configuration</button>
+        </form>
+    </section>
+</div>
+<script>
+(() => {
+    document.getElementById('connected-wifi').addEventListener('click', event => {
+        document.getElementById('wifi-help').hidden = false;
+        event.currentTarget.setAttribute('aria-expanded', 'true');
+    });
+    const button = document.getElementById('current-location');
+    const status = document.getElementById('location-status');
+    button.addEventListener('click', () => {
+        if (!window.isSecureContext || !navigator.geolocation) {
+            status.textContent = 'Location access needs HTTPS or localhost. Enter the latitude and longitude manually, or use PL admin on your phone.';
+            return;
+        }
+        button.disabled = true;
+        status.textContent = 'Capturing your current location…';
+        navigator.geolocation.getCurrentPosition(point => {
+            document.getElementById('id_latitude').value = point.coords.latitude.toFixed(6);
+            document.getElementById('id_longitude').value = point.coords.longitude.toFixed(6);
+            status.textContent = `Location captured (±${Math.round(point.coords.accuracy)} m). Review it and save the configuration.`;
+            button.disabled = false;
+        }, () => {
+            status.textContent = 'Could not capture location. Allow location access and try again, or enter coordinates manually.';
+            button.disabled = false;
+        }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 });
+    });
+})();
+</script>
+{% endblock %}

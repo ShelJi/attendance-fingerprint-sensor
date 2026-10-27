@@ -10,10 +10,11 @@ from django.http import Http404, JsonResponse
 from django.core.exceptions import ValidationError
 from django.middleware.csrf import get_token
 from django.urls import path
+from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
 
 from . import views
-from .forms import EmployeeForm
+from .forms import EmployeeForm, OfficeLocationForm
 from .mobile_render import serialize
 from .models import Employee, AttendanceEvidence, OfficeLocation
 from .services import process_scan
@@ -140,7 +141,24 @@ def employee_create(request):
     return JsonResponse({"employee": serialize(form.save())}, status=201)
 
 
+def office_configuration(request, office_id=None):
+    office = get_object_or_404(OfficeLocation, pk=office_id) if office_id else None
+    if request.method == "POST":
+        data = json_body(request)
+        if data is None:
+            return JsonResponse({"error": "JSON object required"}, status=400)
+        form = OfficeLocationForm(data, instance=office)
+        if not form.is_valid():
+            return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+        return JsonResponse({"office": serialize(form.save())}, status=200 if office else 201)
+    if office:
+        return JsonResponse({"office": serialize(office)})
+    return JsonResponse({"offices": serialize(OfficeLocation.objects.order_by("name", "pk"))})
+
+
 urlpatterns = [
+    path("configuration/offices/", endpoint(office_configuration, ("GET", "POST"))),
+    path("configuration/offices/<int:office_id>/", endpoint(office_configuration, ("GET", "POST"))),
     path("auth/session/", session),
     path("auth/login/", sign_in),
     path("auth/logout/", endpoint(sign_out, ("POST",), management=False)),
