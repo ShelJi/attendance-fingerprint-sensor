@@ -1,0 +1,13 @@
+# AI agent configuration and skills
+.agents/
+.claude/
+.claude/**
+
+# Git metadata
+.git/
+
+# Python virtual environments and caches
+.venv/
+venv/
+__pycache__/
+*.pyc
