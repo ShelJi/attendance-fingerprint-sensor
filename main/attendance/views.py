@@ -103,6 +103,7 @@ def fingerprint_scan(request):
     session, action = process_scan(
         employee=employee,
         occurred_at=timezone.now(),
+        repeat_checkout=True,
     )
 
     # Build display message for Pico
@@ -120,7 +121,7 @@ def fingerprint_scan(request):
             minutes = (total_seconds % 3600) // 60
             worked = str(hours) + "H " + str(minutes) + "M"
 
-        message = short_name + "\nLOGOUT " + worked
+        message = short_name + "\nCHECKED OUT " + worked
     elif action == "already_logged_in":
         message = short_name + "\nALREADY IN"
     elif action == "already_done":

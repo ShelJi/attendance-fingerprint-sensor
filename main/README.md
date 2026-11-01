@@ -169,7 +169,7 @@ No OS push provider, push tokens or closed-app delivery is configured. History r
 
 ## Attendance and device behavior
 
-The first scan/check-in of a day opens a session. Check-out is allowed after five minutes; another check-in requires five minutes after the previous check-out. Earlier attempts return a cooldown action without changing attendance. A stale explicit action from the staff app returns HTTP 409. Staff submissions and hardware scans use the same `process_scan()` service.
+The first scan/check-in of a day opens a session. Check-out is allowed after five minutes. Every subsequent fingerprint scan returns “CHECKED OUT” and updates that day's latest session checkout time and worked hours, including scans within five minutes of the previous checkout. The staff app still allows another explicit check-in five minutes after checkout. Earlier check-in attempts return a cooldown action without changing attendance. A stale explicit action from the staff app returns HTTP 409. Staff submissions and hardware scans use the same `process_scan()` service.
 
 Attendance is grouped by login date in `Asia/Kolkata`; an open session from a prior day is not automatically closed by the current-day lookup. Worked duration is recorded on check-out. Device status is considered online when its last heartbeat is less than two minutes old.
 

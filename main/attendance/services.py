@@ -5,9 +5,9 @@ from django.db import transaction
 
 
 @transaction.atomic
-def process_scan(employee, occurred_at):
+def process_scan(employee, occurred_at, *, repeat_checkout=False):
 
-    today = timezone.localdate()
+    today = timezone.localdate(occurred_at)
 
     session = (
         AttendanceSession.objects
@@ -29,7 +29,7 @@ def process_scan(employee, occurred_at):
         return session, "login"
 
     # Already logged out — allow new login session
-    if session.logout_at is not None:
+    if session.logout_at is not None and not repeat_checkout:
         # Check cooldown
         if occurred_at - session.logout_at < timedelta(minutes=5):
             return session, "already_done"
