@@ -1,4 +1,5 @@
 import json
+import re
 from functools import wraps
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
@@ -12,11 +13,12 @@ from django.middleware.csrf import get_token
 from django.urls import path
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.cache import never_cache
 
 from . import views
 from .forms import EmployeeForm, OfficeLocationForm
 from .mobile_render import serialize
-from .models import Employee, AttendanceEvidence, OfficeLocation
+from .models import AdminPushDevice, AttendanceNotification, Employee, AttendanceEvidence, OfficeLocation
 from .services import process_scan
 from .decorators import is_manager
 from .verification import validate_evidence
@@ -51,15 +53,24 @@ def json_body(request):
 
 
 @require_GET
+@never_cache
 def session(request):
     return JsonResponse({
         "authenticated": request.user.is_authenticated,
         "csrf_token": get_token(request),
         "username": request.user.get_username() if request.user.is_authenticated else None,
+        **native_session(request),
     })
 
 
+def native_session(request):
+    if request.headers.get("X-App-Client") != "native":
+        return {}
+    return {"session_key": request.session.session_key if request.user.is_authenticated else None}
+
+
 @require_POST
+@never_cache
 def sign_in(request):
     data = json_body(request)
     if data is None or not isinstance(data.get("username"), str) or not isinstance(data.get("password"), str):
@@ -68,15 +79,37 @@ def sign_in(request):
     if user is None:
         return JsonResponse({"error": "Invalid credentials"}, status=401)
     login(request, user)
-    return JsonResponse({"username": user.get_username(), "csrf_token": get_token(request)})
+    return JsonResponse({"username": user.get_username(), "csrf_token": get_token(request), **native_session(request)})
 
 
 @require_POST
+@never_cache
 def sign_out(request):
+    AdminPushDevice.objects.filter(user=request.user, session_key=request.session.session_key).delete()
     logout(request)
+    return JsonResponse({"success": True, **native_session(request)})
+
+
+def push_device(request):
+    data = json_body(request)
+    token = data.get("token") if data else None
+    if not isinstance(token, str) or not re.fullmatch(r"(?:Exponent|Expo)PushToken\[[A-Za-z0-9_-]{1,200}\]", token):
+        return JsonResponse({"error": "Valid Expo push token required"}, status=400)
+    with transaction.atomic():
+        device, created = AdminPushDevice.objects.get_or_create(token=token, defaults={
+            "user": request.user, "session_key": request.session.session_key,
+            "cursor": AttendanceNotification.objects.order_by("-pk").values_list("pk", flat=True).first() or 0,
+        })
+        if not created and (device.user_id != request.user.pk or device.session_key != request.session.session_key):
+            device.user = request.user
+            device.session_key = request.session.session_key
+            device.cursor = AttendanceNotification.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
+            device.save()
+            device.pushreceipt_set.all().delete()
     return JsonResponse({"success": True})
 
 
+@never_cache
 def change_password(request):
     data = json_body(request)
     fields = ("old_password", "new_password1", "new_password2")
@@ -85,9 +118,11 @@ def change_password(request):
     form = PasswordChangeForm(request.user, data)
     if not form.is_valid():
         return JsonResponse({"errors": form.errors.get_json_data()}, status=400)
+    old_session_key = request.session.session_key
     user = form.save()
     update_session_auth_hash(request, user)
-    return JsonResponse({"success": True, "csrf_token": get_token(request)})
+    AdminPushDevice.objects.filter(user=user, session_key=old_session_key).update(session_key=request.session.session_key)
+    return JsonResponse({"success": True, "csrf_token": get_token(request), **native_session(request)})
 
 
 def my_attendance(request):
@@ -157,6 +192,7 @@ def office_configuration(request, office_id=None):
 
 
 urlpatterns = [
+    path("notifications/device/", endpoint(push_device, ("POST",))),
     path("configuration/offices/", endpoint(office_configuration, ("GET", "POST"))),
     path("configuration/offices/<int:office_id>/", endpoint(office_configuration, ("GET", "POST"))),
     path("auth/session/", session),

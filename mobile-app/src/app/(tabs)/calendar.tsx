@@ -3,7 +3,7 @@ import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSession } from '../../session';
 import { Calendar, Day } from '../../types';
 import { Avatar, Badge, Body, Button, Card, Caption, Column, EmptyState, ErrorText, Field, IconButton, Label, Loading, Row, Screen, Section, dateValid, hours, useAction, useResource } from '../../ui';
-import { dateKey, monthCells, shiftMonth } from '../../dates';
+import { clockTime, dateKey, monthCells, shiftMonth } from '../../dates';
 import { useTheme } from '../../theme';
 export default function CalendarScreen() {
   const { api } = useSession(); const today = new Date();
@@ -51,6 +51,10 @@ export default function CalendarScreen() {
     <Card><Field label="Specific date" placeholder="YYYY-MM-DD" icon="calendar-outline" value={date} onChangeText={setDate} /><Button title={action.busy ? 'Loading day…' : 'View attendance'} variant="secondary" loading={action.busy} onPress={() => void loadDay(date)} /></Card>
     {day && <><Row><Column><Label>{day.date}</Label><Body>Total worked: {day.total_worked}</Body></Column><Badge>{day.employee_count} people</Badge></Row>
       {day.employees.length === 0 && <EmptyState icon="sunny-outline" title="No attendance recorded" message="There are no employee sessions for this date." />}
-      {day.employees.map(person => <Card key={person.employee_id}><Row><Avatar name={person.name} tone="teal" /><Column><Label>{person.name}</Label><Body>{person.worked_hours} worked</Body></Column></Row><Badge tone={person.is_active ? 'teal' : 'primary'}>{person.is_active ? 'Active session' : 'Completed'}</Badge><Body>Check in · {person.login_at}{'\n'}Check out · {person.logout_at || 'Awaiting checkout'}</Body></Card>)}</>}
+      {day.employees.map(person => <Card key={person.employee_id}><Row><Avatar name={person.name} tone="teal" /><Column><Label>{person.name}</Label><Body>{person.worked_hours} worked</Body></Column></Row><Badge tone={person.is_active ? 'teal' : 'primary'}>{person.is_active ? 'Active session' : 'Completed'}</Badge><Body>Check in · {clockTime(person.login_at)}{'\n'}Check out · {person.logout_at ? clockTime(person.logout_at) : 'Awaiting checkout'}</Body></Card>)}</>}
+    <Button title={busy ? 'Refreshing…' : 'Refresh calendar'} icon="refresh-outline" variant="secondary" loading={busy} disabled={busy} onPress={() => void action.run(async () => {
+      await resource.refresh();
+      if (date && dateValid(date)) { setDay(undefined); setDay(await api!.get<Day>(`calendar/day/?date=${date}`)); }
+    })} />
   </Screen>;
 }

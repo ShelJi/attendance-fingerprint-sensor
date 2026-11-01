@@ -57,12 +57,10 @@ const server = http.createServer((req, res) => {
       }
     }
     deliver = true;
-    const toast = page.getByRole('button', { name: /Test Employee checked out.*Dismiss notification/ });
-    await toast.waitFor({ timeout: 15000 });
-    await toast.click();
-    await page.screenshot({ path: path.join(output, 'work-toast-dismissed.png') });
+    assert.equal(await page.getByRole('button', { name: /Dismiss notification/ }).count(), 0);
+    await page.screenshot({ path: path.join(output, 'work-no-toast.png') });
     assert.deepEqual(errors, []);
-    console.log('Activity UI passed: navigation, separate Office/Outdoor filters, details, three widths, live toast, dismissal, and no runtime errors.');
+    console.log('Activity UI passed: navigation, separate Office/Outdoor filters, details, three widths, no in-app toasts, and no runtime errors.');
   } catch (error) {
     await page.screenshot({ path: path.join(output, 'work-failure.png') }); throw error;
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

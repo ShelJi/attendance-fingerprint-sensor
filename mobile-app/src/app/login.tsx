@@ -15,10 +15,8 @@ export default function Login() {
       <Field label="Password" icon="lock-closed-outline" placeholder="Your password" value={password} onChangeText={setPassword} secureTextEntry={!visible} autoComplete="current-password" />
       <Button title={visible ? 'Hide password' : 'Show password'} icon={visible ? 'eye-off-outline' : 'eye-outline'} variant="ghost" onPress={() => setVisible(!visible)} />
       <ErrorText error={action.error} /><Button title={action.busy ? 'Signing in…' : 'Sign in'} icon="arrow-forward-outline" loading={action.busy} disabled={!username.trim() || !password || !api} onPress={() => void action.run(async () => {
-        const server = api!.origin;
-        if (!__DEV__ && !server.startsWith('https://')) throw new Error('Use an HTTPS server for release builds.');
-        await connect(server, username.trim(), password); setPassword('');
+        await connect(username.trim(), password); setPassword('');
       })} />
-    </Card><Row><Icon name="shield-checkmark-outline" /><Caption>Your password is never saved on this device.</Caption></Row><Body>Connecting to a different workspace? Change the backend in Settings.</Body>
+    </Card><Row><Icon name="shield-checkmark-outline" /><Caption>Your password is never saved on this device.</Caption></Row><Body>Your login is remembered until you sign out or your session expires.</Body>
   </Screen>;
 }

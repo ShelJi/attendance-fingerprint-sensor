@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied
 from .forms import EmployeeForm
 
 from .models import Employee, AttendanceSession, AttendanceDevice, DeviceCommand
-from .models import OfficeLocation, AttendanceEvidence, AttendanceNotification
+from .models import AdminPushDevice, PushReceipt, OfficeLocation, AttendanceEvidence, AttendanceNotification
 
 
 @admin.register(Employee)
@@ -26,6 +26,8 @@ admin.site.register(AttendanceSession)
 admin.site.register(AttendanceDevice)
 admin.site.register(DeviceCommand)
 admin.site.register(AttendanceNotification)
+admin.site.register(AdminPushDevice)
+admin.site.register(PushReceipt)
 
 
 @admin.register(OfficeLocation)

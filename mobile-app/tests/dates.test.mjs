@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dateKey, dateValid, monthCells, monthRange, shiftMonth, validateRange } from '../src/dates.ts';
+import { clockTime, dateKey, dateValid, monthCells, monthRange, shiftMonth, validateRange } from '../src/dates.ts';
+
+test('calendar times use 12-hour format at midnight, noon, and evening', () => {
+  assert.equal(clockTime('00:05:00'), '12:05 AM');
+  assert.equal(clockTime('12:00:00'), '12:00 PM');
+  assert.equal(clockTime('23:45:10'), '11:45 PM');
+  assert.equal(clockTime(null), '—');
+});
 
 test('calendar cells use Monday alignment and correct leap days', () => {
   const october = monthCells(2026, 10);

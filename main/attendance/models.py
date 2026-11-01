@@ -180,6 +180,19 @@ class AttendanceNotification(models.Model):
         constraints = [models.UniqueConstraint(fields=["session", "action"], name="one_notification_per_attendance_action")]
 
 
+class AdminPushDevice(models.Model):
+    token = models.CharField(max_length=255, unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    session_key = models.CharField(max_length=40)
+    cursor = models.PositiveBigIntegerField(default=0)
+
+
+class PushReceipt(models.Model):
+    device = models.ForeignKey(AdminPushDevice, on_delete=models.CASCADE)
+    ticket = models.CharField(max_length=100, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 @receiver(post_save, sender=AttendanceSession)
 def publish_attendance_notification(sender, instance, created, **kwargs):
     if created:

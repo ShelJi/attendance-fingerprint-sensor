@@ -41,6 +41,6 @@ export default function ActivityScreen() {
       </Card>)}
       <Caption>Page {data.page} of {data.pages} · {data.count} events</Caption><Row><Column><Button title="Previous" variant="secondary" disabled={!data.has_previous} onPress={() => setFilter({ ...filter, page: data.page - 1 })} /></Column><Column><Button title="Next" variant="secondary" disabled={!data.has_next} onPress={() => setFilter({ ...filter, page: data.page + 1 })} /></Column></Row>
     </>}
-    <Button title="Refresh activity" icon="refresh-outline" variant="ghost" disabled={resource.loading} onPress={() => void resource.refresh()} /><Caption>All attendance is saved in this history. Live toasts appear while PL admin is open; this does not register push notifications for a closed app.</Caption>
+    <Button title="Refresh activity" icon="refresh-outline" variant="ghost" disabled={resource.loading} onPress={() => void resource.refresh()} /><Caption>Attendance history is saved here. Phone notifications are delivered even when the app is closed. Refresh to load the latest records.</Caption>
   </Screen>;
 }

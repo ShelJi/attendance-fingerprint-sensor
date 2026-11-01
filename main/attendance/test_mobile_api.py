@@ -88,3 +88,40 @@ class MobileApiTests(TestCase):
         response = client.post("/api/mobile/auth/logout/", HTTP_X_CSRFTOKEN=response.json()["csrf_token"])
         self.assertEqual(response.status_code, 200)
         self.assertEqual(client.get("/api/mobile/dashboard/").status_code, 401)
+
+    def test_native_session_restores_without_cookie_jar_and_retains_csrf_checks(self):
+        def request(path, data=None, key=None, csrf=None):
+            client = Client(enforce_csrf_checks=True)
+            cookie = "; ".join(value for value in (
+                f"sessionid={key}" if key else "", f"csrftoken={csrf}" if csrf else "",
+            ) if value)
+            headers = {"HTTP_X_APP_CLIENT": "native", "HTTP_COOKIE": cookie}
+            if data is None:
+                return client.get("/api/mobile/" + path, **headers)
+            if csrf:
+                headers["HTTP_X_CSRFTOKEN"] = csrf
+            return client.post("/api/mobile/" + path, data, content_type="application/json", **headers)
+
+        credentials = {"username": "mobile", "password": "test-password"}
+        self.assertEqual(request("auth/login/", credentials).status_code, 403)
+        initial = request("auth/session/").json()
+        self.assertIsNone(initial["session_key"])
+        response = request("auth/login/", credentials, csrf=initial["csrf_token"])
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("no-store", response["Cache-Control"])
+        key = response.json()["session_key"]
+        restored = request("auth/session/", key=key).json()
+        self.assertTrue(restored["authenticated"])
+        self.assertEqual(restored["username"], "mobile")
+        self.assertNotIn("session_key", self.client.get("/api/mobile/auth/session/").json())
+        self.assertEqual(request("auth/password/", {}, key=key).status_code, 403)
+        changed = request("auth/password/", {
+            "old_password": "test-password", "new_password1": "new-secure-password-837", "new_password2": "new-secure-password-837",
+        }, key=key, csrf=restored["csrf_token"])
+        self.assertEqual(changed.status_code, 200)
+        new_key = changed.json()["session_key"]
+        self.assertNotEqual(new_key, key)
+        self.assertFalse(request("auth/session/", key=key).json()["authenticated"])
+        self.assertTrue(request("auth/session/", key=new_key).json()["authenticated"])
+        self.assertEqual(request("auth/logout/", {}, key=new_key, csrf=changed.json()["csrf_token"]).status_code, 200)
+        self.assertFalse(request("auth/session/", key=new_key).json()["authenticated"])

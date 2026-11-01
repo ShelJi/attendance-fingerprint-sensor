@@ -1,4 +1,10 @@
 export const dateKey = (date: Date) => `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+export function clockTime(value: string | null) {
+  if (!value) return '—';
+  const match = /^(\d{2}):(\d{2})(?::\d{2})?$/.exec(value);
+  if (match) return `${+match[1] % 12 || 12}:${match[2]} ${+match[1] < 12 ? 'AM' : 'PM'}`;
+  return new Date(value).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
 export function monthRange(date: Date) {
   const first = new Date(date); first.setDate(1);
   const last = new Date(first); last.setMonth(last.getMonth() + 1, 0);

@@ -9,7 +9,7 @@ export { dateValid, validateRange } from './dates';
 
 export const colors = light;
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
-export const stamp = (value: string | null) => value ? new Date(value).toLocaleString() : '—';
+export const stamp = (value: string | null) => value ? new Date(value).toLocaleString(undefined, { hour12: true }) : '—';
 export const hours = (seconds: number) => `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 export function duration(value: string | null) {
   if (!value) return '—';

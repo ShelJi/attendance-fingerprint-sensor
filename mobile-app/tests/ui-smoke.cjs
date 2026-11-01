@@ -115,6 +115,13 @@ const server = http.createServer((req, res) => {
     const bounds = await leap.boundingBox(); assert.ok(bounds.width >= 44 && bounds.height >= 44, 'Calendar touch target is too small');
     await leap.click();
     await page.getByText('Day details · 2024-02-29', { exact: true }).waitFor();
+    await page.getByText('Check in · 9:00 AM', { exact: false }).waitFor();
+    const beforeRefresh = requests.length;
+    await page.getByRole('button', { name: 'Refresh calendar', exact: true }).click();
+    await page.getByText('Check out · 10:00 AM', { exact: false }).waitFor();
+    assert.ok(requests.slice(beforeRefresh).some(item => item.key === 'calendar/' && item.query === '?year=2024&month=2'));
+    assert.ok(requests.slice(beforeRefresh).some(item => item.key === 'calendar/day/' && item.query === '?date=2024-02-29'));
+    assert.equal(await page.getByRole('textbox', { name: 'Specific date', exact: true }).inputValue(), '2024-02-29');
     await capture('calendar-selected-320');
     await visit('/employees', 'Team directory');
     await page.getByRole('textbox', { name: 'Find a team member', exact: true }).fill('does-not-exist');
@@ -168,10 +175,11 @@ const server = http.createServer((req, res) => {
       await capture(`${name}-large-text-320`);
     }
     await visit('/settings', 'Your workspace, your way');
-    await page.getByRole('textbox', { name: 'Backend URL', exact: true }).fill('https://attendance.example.net');
-    await page.getByRole('button', { name: 'Save backend URL', exact: true }).click();
+    assert.equal(await page.getByRole('textbox', { name: 'Backend URL', exact: true }).isEditable(), false);
+    assert.equal(await page.getByRole('button', { name: 'Save backend URL', exact: true }).count(), 0);
+    await visit('/', 'Hello, Alex');
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     await page.getByText('Welcome back', { exact: true }).waitFor();
-    assert.equal(await page.evaluate(() => localStorage.getItem('attendance-server')), 'https://attendance.example.net');
     assert.equal(await page.getByRole('textbox', { name: 'Backend URL', exact: true }).count(), 0);
     await page.getByRole('textbox', { name: 'Username', exact: true }).fill('Alex');
     await page.getByLabel('Password', { exact: true }).fill('test-only');

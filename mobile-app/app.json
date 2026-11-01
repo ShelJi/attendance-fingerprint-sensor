@@ -34,6 +34,7 @@
       "expo-secure-store",
       "expo-sharing",
       "expo-font",
+      "expo-notifications",
       [
         "expo-location",
         {

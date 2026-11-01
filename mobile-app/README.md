@@ -1,8 +1,7 @@
 # PL admin — Management App
 
 The app display name is **PL admin**. The bell opens Office/Outdoor attendance
-activity with date filters and verification details. Live toasts cover all staff
-check-ins/outs while the app is open; durable history remains available afterward.
+activity with date filters and verification details. Native phone notifications cover staff check-ins/outs, including while the app is closed; durable history remains available afterward.
 See [workplace setup and notifications](../main/WORKPLACE_ATTENDANCE.md).
 
 Expo SDK 58 + TypeScript app for Android and iOS. All requests use the existing
@@ -48,31 +47,25 @@ Keep this terminal and the backend terminal open. Scan this app's QR code on the
 
 ## How it works
 
-PL admin signs in to the shared Django backend with a management account. It keeps authentication in session cookies and sends CSRF tokens for changes. Employees, session totals, calendar data and reports come from that backend; the app does not keep a separate attendance database.
+PL admin signs in to the shared Django backend with a management account. It securely remembers the native login session and sends CSRF tokens for changes. Employees, session totals, calendar data and reports come from that backend; the app does not keep a separate attendance database.
 
-Adding a person creates both an employee record and its initial login account. Device actions queue commands on the backend, then poll for the sensor result. The sensor must be connected and polling to execute them. The bell reads saved attendance events and evidence; foreground polling displays new check-ins/outs as toasts. Settings changes the backend connection or the signed-in manager's password.
+Adding a person creates both an employee record and its initial login account. Device actions queue commands on the backend, then poll for the sensor result. The sensor must be connected and polling to execute them. The bell reads saved attendance events and evidence; native push delivery displays new check-ins/outs in the phone notification tray. Settings displays the build-time backend connection and lets the signed-in manager change their password.
 
 Open the QR code in a matching Expo Go version, or use an Android/iOS development
 build. iOS simulator requires macOS. This project targets native mobile; browser
 authentication/CORS and web PDF sharing are not configured.
 
-Sign in with an existing local Django username/password. The default backend is
-`http://127.0.0.1:8000`, configured in `src/settings.ts`. For a physical phone,
-set `EXPO_PUBLIC_API_URL` in `.env` to your computer's Wi-Fi IP on port 8000
-and restart Expo. The phone and computer must share the same Wi-Fi. The old saved
-`https://s.plsofttech.com` default is automatically replaced by the local default.
-Open **Settings**
-from the login screen or any main tab to change it. Settings is available both
-before and after sign-in; changing servers returns you to sign-in. The URL
-field does not appear directly in the sign-in form. You can also copy
-`.env.example` to `.env` and set
-`EXPO_PUBLIC_API_URL` as the default. Saved in-app Settings override this default.
-The URL is public configuration,
-not a secret. The last successful origin is saved with Expo SecureStore; passwords
-and CSRF tokens are not persisted by app code. Native networking manages session
-cookies; on launch the app checks the session and asks for login if it has expired.
-The web visual-preview adapter stores only that public origin in localStorage;
-it does not store credentials or configure production browser authentication.
+Sign in with an existing Django management username/password. Set `EXPO_PUBLIC_API_URL` in `mobile-app/.env` before building, for example:
+
+```dotenv
+EXPO_PUBLIC_API_URL=https://attendance.example.com
+```
+
+The URL is embedded by Expo when bundling. Settings displays it read-only; previously saved URL overrides are ignored. Missing or invalid URLs fail app configuration with a clear error. For local development, use the backend computer's Wi-Fi IP and port 8000; the phone and computer must share a reachable network. Installable builds allow the configured HTTP URL; native cleartext permissions are enabled only when building with an HTTP backend URL. Restart/reload development builds after editing `.env`; installed apps need a new build/update for a changed URL.
+
+The root `.easignore` includes `mobile-app/.env` in EAS cloud build uploads so the public URL is available remotely as well as locally. Keep public build configuration in this file. Builds started from GitHub/CI need the same file or an `EXPO_PUBLIC_API_URL` build environment variable available there.
+
+Native login stores only the server origin and opaque Django session key in Expo SecureStore, never the password. On app/phone restart it restores the key, verifies the session and management access with Django, and obtains a fresh CSRF token. Network failures leave the saved key intact. A changed build-time origin cannot reuse another server's credential. Sign-out or server expiry clears the saved login; password changes update the rotated key. Browsers continue using HttpOnly session cookies and do not put credentials in localStorage. Deploy the updated Django auth endpoints before distributing this app build.
 
 ## Local backend
 
@@ -85,9 +78,7 @@ From the repository root:
 Use your computer's LAN IP on a physical phone (same Wi-Fi), for example
 `http://192.168.1.20:8000`. Android emulator can use `http://10.0.2.2:8000`.
 `localhost` on the phone refers to the phone. Allow port 8000 through your local
-firewall if needed. HTTP is for local development only; release login requires
-HTTPS. Native development builds may require platform-specific local network /
-cleartext configuration or an HTTPS tunnel. Do not put passwords in environment files.
+firewall if needed. HTTP is allowed for the configured backend in both development and installable builds. Changing between HTTP and HTTPS requires rebuilding to update native network permissions. HTTP sends credentials and attendance traffic without transport encryption. Do not put passwords in environment files.
 
 ## Features
 
@@ -102,7 +93,7 @@ cleartext configuration or an HTTPS tunnel. Do not put passwords in environment 
   Temporary PDF cache files are removed after sharing.
 - Loading, empty, retry, validation, network failure, and expired-session states.
 - Separate Office/Outdoor/Device activity with submitted workplace evidence.
-- Live management attendance toasts and persistent event history, including fingerprint scans.
+- Native management attendance notifications and persistent event history, including fingerprint scans.
 
 Hardware scan/heartbeat/command polling APIs are intentionally left to the Pico;
 the app uses the authenticated device-control endpoints. Device command state is
@@ -119,7 +110,7 @@ date ranges for large installations.
 4. Use **Calendar** for daily attendance and **Reports** for date-range totals and
    PDF sharing.
 5. Tap the **bell** to inspect Office/Outdoor activity and all employee attendance events.
-6. Open **Settings** from the header to change your password or backend URL. A password change keeps the current session; a server change returns you to sign-in. Settings is also available before sign-in.
+6. Open **Settings** from the header to change your password or view the build-time backend URL. A password change keeps the current session. Settings is also available before sign-in.
 7. Sign out from Overview when finished. Appearance follows the device's light/dark preference.
 
 Employee editing, account activation, username changes and password resets are handled in the backend's Django Admin: **Employees** for profile details and **Users** for account details. A superuser can manage all registered attendance models there. The mobile employee screen displays attendance history; it is not a profile-editing form.
@@ -134,14 +125,13 @@ Employee editing, account activation, username changes and password resets are h
 For example, Employee ID `EMP-001` with Password blank creates login `EMP-001` / `12345`. Passwords are not shown in employee details. To reset an existing password, use Django Admin → Employees → the employee → Password → Save; blank preserves the existing password. Creating/updating other employee details does not reset existing credentials. Changing your own password in PL admin Settings affects only your management account.
 
 The backend applies five-minute minimum intervals between check-in/out actions.
-Counts, dates and worked durations come from the server. Changing a backend URL
-returns the app to sign-in; supply only an origin, with no `/api/mobile/` suffix.
+Counts, dates and worked durations come from the server. Configure only a server origin in `.env`, with no `/api/mobile/` suffix.
 
 ## Screens and navigation
 
 | Screen / entry point | What it provides |
 | --- | --- |
-| Sign-in / Settings | Username/password, configured server, saved backend origin; no stored password |
+| Sign-in / Settings | Username/password, read-only build-time server, securely remembered login; no stored password |
 | Overview | Team count, today’s sessions, active sessions, device availability and shortcuts |
 | People | Search by name/employee ID; create a member; open attendance details |
 | Employee details | Date filters, worked total, sessions and pagination |
@@ -171,9 +161,25 @@ GPS capture uses foreground `expo-location` permission only when requested. If p
 
 ## Notifications
 
-While signed in, PL admin polls the management feed every five seconds when active. Each accepted staff check-in/out or fingerprint login/logout creates a durable event; cooldown attempts, refreshes and account sign-in/sign-out do not. New events appear as queued, dismissible toasts. The initial feed request establishes a cursor without replaying old events as toasts; missed history is available through Attendance activity.
+PL admin registers an Expo push token after sign-in and asks for notification permission. Attendance alerts use native phone notifications in both the foreground and background; there are no in-app attendance toasts. Web retains the activity history without native push. Existing events are skipped on first registration; repeated registration preserves pending events. Signing out unregisters devices for that login session. Expired/revoked sessions and accounts that lose management access stop receiving alerts.
 
-This is foreground in-app delivery, **not OS push notification delivery when the app is closed**. No push tokens/provider are configured. Temporary connection failures are retried. A foreground toast does not automatically reload an already-open activity list; use Refresh activity or reopen the screen to obtain the latest rows.
+Expo Go can open the app, but push registration is skipped there so unsupported notification modules cannot crash navigation. Use a native development/preview build to test phone push delivery.
+
+Deploy the Django migration (`python manage.py migrate`) and run **one** supervised worker alongside the web server:
+
+```bash
+python manage.py send_attendance_push
+```
+
+The worker checks saved events every five seconds, retries failed submissions using a durable per-device cursor, tracks Expo receipts, and removes invalid tokens. `--once` processes one pass for scheduled execution. Push delivery is at least once: an ambiguous network failure can produce a duplicate. Provider errors are logged for operations; check credentials if receipts report failures. Optional Expo push security uses the server's `EXPO_ACCESS_TOKEN` environment variable.
+
+Build a new native binary after installing dependencies (`npx eas-cli@latest build --platform android`, or iOS). Configure Android FCM v1 / iOS APNs credentials for the existing EAS project, following [Expo push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/). Expo Go is not sufficient. Allow notifications on the phone, sign in once to register, then verify a scan with the app open and closed. Closed-app delivery is handled by FCM/APNs; OS restrictions, force-stop, disabled permissions and expired login sessions can prevent delivery. This repository change does not deploy the worker or configure cloud credentials.
+
+`expo-notifications` is pinned to SDK 58 patch 58.1.6: 58.1.7 currently requires unpublished `@expo/image-utils@^0.12.6`. Revisit the pin once that dependency is published.
+
+For Android, register Firebase package `com.shelj.myapp` and provide its `google-services.json` using the EAS file environment variable `GOOGLE_SERVICES_JSON` (or set it to a local file path for a local build). `app.config.js` passes that path to `android.googleServicesFile`. Also upload the FCM v1 service-account credential to EAS; the client JSON and server credential are different files. Never commit the service-account key.
+
+Calendar Refresh reloads the current month and selected day without resetting the selection. Clock times throughout PL admin use 12-hour AM/PM; worked durations stay as elapsed hours/minutes. Push body times use the Django server's configured time zone.
 
 Staff accounts cannot read this management feed. Personal attendance and personal notifications belong in [PL attendance](../staff-app/README.md).
 
@@ -197,7 +203,7 @@ Expo setup reference: [Router installation](https://docs.expo.dev/router/install
 
 A bundle export produces JavaScript/Hermes assets, not an installable APK/IPA.
 Signed binaries require an Expo/EAS project and platform signing credentials.
-Physical device networking, native cookie persistence and sensor commands need a
+Physical device networking, native SecureStore/session restoration and sensor commands need a
 smoke test against the configured backend.
 
 For both native bundles use `npx expo export --platform android --platform ios`.
@@ -216,7 +222,7 @@ node tests/activity-ui.cjs
 ```
 
 This checks workplace navigation, Office/Outdoor filters, details, three viewport
-widths and live-toast dismissal. `tests/ui-smoke.cjs` is the broader UI scenario
+widths and absence of in-app toasts. `tests/ui-smoke.cjs` is the broader UI scenario
 script; it also checks signed-in Settings, password changes and destructive-command
 confirmation. Screenshots are written to ignored
 `test-results/`. See [UI_REDESIGN.md](UI_REDESIGN.md) for the earlier visual audit.
@@ -227,11 +233,11 @@ confirmation. Screenshots are written to ignored
 | --- | --- |
 | Invalid JSON response / HTML instead of API data | Check `http://<computer-IP>:8000/api/mobile/auth/session/` from the phone; it must return JSON. Enter the backend origin only, not an Expo port or `/web/` URL |
 | Cannot reach local backend | Keep Django running on `0.0.0.0:8000`, verify the current Wi-Fi IP, same reachable Wi-Fi and inbound port 8000 access |
-| Old backend after editing `.env` | Restart Expo and reload; saved Settings take priority except the old hosted default, which is replaced automatically |
+| Old backend after editing `.env` | Restart Expo and reload for development; rebuild/update installed apps. Saved Settings no longer override `.env` |
 | API returns 404 | Correct origin; deployed backend includes `/api/mobile/` and the new activity/notification routes |
 | Login succeeds but data returns 403 | Account has management access; an ordinary employee must use PL attendance |
 | POST returns CSRF 403 | Retain cookies, refresh sign-in and rotated CSRF token; check deployed HTTPS/cookie settings |
-| No live toast | App is active, session valid, connection available, and event is newer than its initial baseline |
+| No phone notification | New native build, phone permission, EAS FCM/APNs credentials, valid manager session, registered token, and running push worker; inspect worker logs |
 | New event absent from open list | Refresh activity; verify date/source filters and page |
 | PDF unavailable | Native share support, backend PDF response, authentication and active date filters |
 | Native module / icon error | Run `npm ci`, Expo Doctor, then `npx expo start --clear`; rebuild a native binary if its modules/config changed |
@@ -245,12 +251,12 @@ current `npm audit` output rather than forcing an incompatible SDK downgrade.
 ## Project structure
 
 - `src/app/`: Expo Router screens, including the main tabs and employee forms.
-- `src/api.ts`: JSON client, session cookies, CSRF handling and request errors.
-- `src/session.tsx`: session bootstrap, sign-in/out and stored server selection.
+- `src/api.ts`: JSON client, native session cookies, CSRF handling and request errors.
+- `src/session.tsx`: session bootstrap, secure login restoration and sign-in/out.
 - `src/settings.ts`: backend default, overridden by saved in-app settings.
 - `src/ui.tsx` and `src/theme.ts`: shared components and appearance.
 - `src/app/activity.tsx`: management source/date-filtered attendance evidence.
-- `src/notifications.tsx`: foreground cursor polling, deduplication and toast queue.
+- `src/notifications.tsx`: native notification permissions, channel setup and push-token registration.
 - `tests/`: API/date unit checks and isolated browser UI scenarios.
 
 See the [repository overview](../README.md) for the complete system.
