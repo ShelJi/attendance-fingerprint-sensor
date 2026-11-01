@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { router } from 'expo-router';
 import { useSession } from '../session';
+import { googleMapsUrl } from '../location';
 import { monthRange } from '../dates';
 import { query } from '../api';
 import { Avatar, Badge, Body, Button, Card, Caption, Chip, Column, DateRange, EmptyState, ErrorText, IconButton, Label, Loading, Row, Screen, Section, stamp, useAction, useResource, validateRange } from '../ui';
@@ -29,13 +30,13 @@ export default function ActivityScreen() {
     <ErrorText error={resource.error || action.error} />{resource.loading && <Loading />}
     {data && <><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Badge tone="teal">Office: {data.totals.office}</Badge><Badge tone="amber">Outdoor: {data.totals.outdoor}</Badge><Badge>Device / legacy: {data.totals.device}</Badge></View>
       {!data.records.length && <EmptyState icon="notifications-outline" title="No attendance in this view" message="Choose another workplace or date range to see more activity." />}
-      {data.records.map(item => <Card key={item.id}><Row><Avatar name={item.name} tone={item.mode === 'outdoor' ? 'amber' : 'teal'} /><Column><Label>{item.name}</Label><Caption>{item.employee_code} · Session #{item.session_id}</Caption></Column></Row>
+      {data.records.map(item => <Card key={item.id} tone={item.verification ? 'teal' : undefined}><Row><Avatar name={item.name} tone={item.mode === 'outdoor' ? 'amber' : 'teal'} /><Column><Label>{item.name}</Label><Caption>{item.employee_code} · Session #{item.session_id}</Caption></Column></Row>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Badge tone={item.action === 'login' ? 'teal' : 'primary'}>{item.action === 'login' ? 'Checked in' : 'Checked out'}</Badge><Badge tone={item.mode === 'outdoor' ? 'amber' : 'primary'}>{item.mode === 'device' ? 'Device / legacy' : item.mode === 'office' ? 'Office' : 'Outdoor'}</Badge></View><Body>{stamp(item.occurred_at)}</Body>
         {item.verification ? <>
           <Section title={item.verification.office || item.verification.place_name} />
           <Body>GPS · {item.verification.latitude.toFixed(6)}, {item.verification.longitude.toFixed(6)}{'\n'}Accuracy · ±{Math.round(item.verification.accuracy_meters)} m</Body><Caption>Captured {stamp(item.verification.captured_at)}</Caption>
           {item.mode === 'office' ? <Body>Wi-Fi · {item.verification.wifi_ssid}{'\n'}BSSID · {item.verification.wifi_bssid}</Body> : <><Label>Day’s work</Label><Body>{item.verification.work_description}</Body></>}
-          <Button title="View location on map" variant="secondary" icon="location-outline" onPress={() => void action.run(async () => { await Linking.openURL(`https://www.google.com/maps?q=${item.verification!.latitude},${item.verification!.longitude}`); })} />
+          <Button title={item.action === 'login' ? 'Check-in location' : 'Check-out location'} variant="secondary" icon="location-outline" onPress={() => void action.run(async () => { await Linking.openURL(googleMapsUrl(item.verification!.latitude, item.verification!.longitude)); })} />
         </> : <Body>Device or historical attendance. No mobile Wi-Fi/GPS evidence was recorded.</Body>}
         <Button title="Employee attendance" variant="ghost" icon="person-outline" onPress={() => router.push({ pathname: '/employee/[id]', params: { id: item.employee_id } })} />
       </Card>)}

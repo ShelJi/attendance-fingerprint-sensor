@@ -99,7 +99,7 @@ test('HTML and malformed successful responses show a useful error instead of a J
   for (const body of ['<!doctype html><html>Sign in</html>', '', '{broken']) {
     const api = new Api('https://example.com', async () => new Response(body));
     for (const request of [() => api.get('auth/session/'), () => api.post('auth/login/', {})]) {
-      await assert.rejects(request, error => error instanceof ApiError && /invalid JSON response.*Check the backend URL/.test(error.message));
+      await assert.rejects(request, error => error instanceof ApiError && /invalid JSON response.*Check EXPO_PUBLIC_API_URL/.test(error.message));
     }
   }
 });

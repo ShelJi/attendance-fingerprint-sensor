@@ -1,10 +1,10 @@
 export type Employee = { id: number; name: string; employee_id: string; fingerprint_id: string };
 export type Device = { device_id: string; is_active: boolean; is_online: boolean; last_seen: string | null };
-export type Session = { id: number; login_at: string; logout_at: string | null; worked_hours: string | null };
+export type Session = { id: number; login_at: string; logout_at: string | null; worked_hours: string | null; evidence?: { action: 'login' | 'logout'; mode: 'office' | 'outdoor'; latitude: number; longitude: number }[] };
 export type EmployeeRow = { employee: Employee; last_action: string; last_time: string | null; worked_hours: string | null };
 export type Detail = { employee: Employee; page_obj: { results: Session[]; page: number; pages: number; count: number; has_next: boolean; has_previous: boolean }; total_worked: string };
 export type Dashboard = { device: Device | null; total_employees: number; today_sessions: number; active_sessions: number };
-export type Calendar = { year: number; month: number; calendar_days: { date: string; employee_count: number; total_worked_seconds: number }[] };
-export type Day = { date: string; employee_count: number; total_worked: string; employees: { employee_id: number; name: string; login_at: string; logout_at: string | null; worked_hours: string; is_active: boolean }[] };
-export type Report = { grand_total: string; total_records: number; start_date: string; end_date: string; report_data: { employee: Employee; employee_total: string; records: { date: string; login_at: string | null; logout_at: string | null; worked_hours: string; sessions: number }[] }[] };
+export type Calendar = { year: number; month: number; calendar_days: { date: string; employee_count: number; total_worked_seconds: number; app_logins?: number; device_logins?: number }[] };
+export type Day = { date: string; employee_count: number; total_worked: string; employees: { employee_id: number; name: string; login_at: string; logout_at: string | null; worked_hours: string; is_active: boolean; app_logins?: number; device_logins?: number; sessions?: Session[] }[] };
+export type Report = { grand_total: string; total_records: number; start_date: string; end_date: string; report_data: { employee: Employee; employee_total: string; records: { date: string; login_at: string | null; logout_at: string | null; worked_hours: string; sessions: number; app_logins?: number; device_logins?: number }[] }[] };
 export type Command = { command_id?: number; status: string; result?: unknown; message?: string };

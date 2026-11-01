@@ -10,6 +10,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator, RegexVa
 
 
 class Employee(models.Model):
+    # Legacy setting; notification delivery no longer reads this flag.
+    login_notifications_enabled = models.BooleanField(default=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="employee")
     name = models.CharField(max_length=150)
     employee_id = models.CharField(max_length=50, unique=True)
@@ -181,6 +183,7 @@ class AttendanceNotification(models.Model):
 
 
 class AdminPushDevice(models.Model):
+    personal = models.BooleanField(default=False)
     token = models.CharField(max_length=255, unique=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     session_key = models.CharField(max_length=40)

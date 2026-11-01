@@ -7,6 +7,8 @@ from django.shortcuts import render as html_render
 def serialize(value):
     if isinstance(value, Model):
         data = {field.name: field.value_from_object(value) for field in value._meta.fields}
+        if value._meta.label == "attendance.AttendanceSession":
+            data["evidence"] = [{"action": item.action, "mode": item.mode, "latitude": item.latitude, "longitude": item.longitude} for item in value.evidence.all()]
         if hasattr(value, "is_online"):
             data["is_online"] = value.is_online
         if hasattr(value, "is_active"):

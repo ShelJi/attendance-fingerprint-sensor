@@ -49,7 +49,7 @@ Keep this terminal and the backend terminal open. Scan this app's QR code on the
 
 PL admin signs in to the shared Django backend with a management account. It securely remembers the native login session and sends CSRF tokens for changes. Employees, session totals, calendar data and reports come from that backend; the app does not keep a separate attendance database.
 
-Adding a person creates both an employee record and its initial login account. Device actions queue commands on the backend, then poll for the sensor result. The sensor must be connected and polling to execute them. The bell reads saved attendance events and evidence; native push delivery displays new check-ins/outs in the phone notification tray. Settings displays the build-time backend connection and lets the signed-in manager change their password.
+Adding a person creates both an employee record and its initial login account. Device actions queue commands on the backend, then poll for the sensor result. The sensor must be connected and polling to execute them. The bell reads saved attendance events and evidence; native push delivery displays new check-ins/outs in the phone notification tray. Settings lets the signed-in manager change their password.
 
 Open the QR code in a matching Expo Go version, or use an Android/iOS development
 build. iOS simulator requires macOS. This project targets native mobile; browser
@@ -61,7 +61,7 @@ Sign in with an existing Django management username/password. Set `EXPO_PUBLIC_A
 EXPO_PUBLIC_API_URL=https://attendance.example.com
 ```
 
-The URL is embedded by Expo when bundling. Settings displays it read-only; previously saved URL overrides are ignored. Missing or invalid URLs fail app configuration with a clear error. For local development, use the backend computer's Wi-Fi IP and port 8000; the phone and computer must share a reachable network. Installable builds allow the configured HTTP URL; native cleartext permissions are enabled only when building with an HTTP backend URL. Restart/reload development builds after editing `.env`; installed apps need a new build/update for a changed URL.
+The URL is embedded by Expo when bundling. Settings has no backend URL option; previously saved URL overrides are ignored. Missing or invalid URLs fail app configuration with a clear error. For local development, use the backend computer's Wi-Fi IP and port 8000; the phone and computer must share a reachable network. Installable builds allow the configured HTTP URL; native cleartext permissions are enabled only when building with an HTTP backend URL. Restart/reload development builds after editing `.env`; installed apps need a new build/update for a changed URL.
 
 The root `.easignore` includes `mobile-app/.env` in EAS cloud build uploads so the public URL is available remotely as well as locally. Keep public build configuration in this file. Builds started from GitHub/CI need the same file or an `EXPO_PUBLIC_API_URL` build environment variable available there.
 
@@ -110,7 +110,7 @@ date ranges for large installations.
 4. Use **Calendar** for daily attendance and **Reports** for date-range totals and
    PDF sharing.
 5. Tap the **bell** to inspect Office/Outdoor activity and all employee attendance events.
-6. Open **Settings** from the header to change your password or view the build-time backend URL. A password change keeps the current session. Settings is also available before sign-in.
+6. Open **Settings** from the header to change your password. A password change keeps the current session. Settings is also available before sign-in.
 7. Sign out from Overview when finished. Appearance follows the device's light/dark preference.
 
 Employee editing, account activation, username changes and password resets are handled in the backend's Django Admin: **Employees** for profile details and **Users** for account details. A superuser can manage all registered attendance models there. The mobile employee screen displays attendance history; it is not a profile-editing form.
@@ -131,7 +131,7 @@ Counts, dates and worked durations come from the server. Configure only a server
 
 | Screen / entry point | What it provides |
 | --- | --- |
-| Sign-in / Settings | Username/password, read-only build-time server, securely remembered login; no stored password |
+| Sign-in / Settings | Username/password, build-time server, securely remembered login; no stored password |
 | Overview | Team count, today’s sessions, active sessions, device availability and shortcuts |
 | People | Search by name/employee ID; create a member; open attendance details |
 | Employee details | Date filters, worked total, sessions and pagination |
@@ -266,3 +266,5 @@ See the [repository overview](../README.md) for the complete system.
 In **Overview → App configuration**, tap **Use connected Wi-Fi** to fill the SSID and BSSID from the phone’s current Wi-Fi connection. Allow precise location permission and enable location services. Review the fields, capture the office location, then tap **Save configuration**. Capturing alone does not save changes.
 
 For hotspot development, connect a second phone running PL admin to the hotspot and capture from that phone. If the hotspot’s BSSID changes, capture and save it again. Browsers cannot read these identifiers; manual entry remains available. Missing permission or unavailable identifiers leave existing fields unchanged. Existing installed native apps need rebuilding for NetInfo and the iOS Wi-Fi entitlement; iPhone requires a signed build with Wi-Fi access enabled.
+
+Calendar and reports support All, App logins, and Device logins filters. The check-in method determines the login source. Calendar day details show individual sessions and saved app check-in/checkout map links. PDF reports include login source counts and respect the selected filter.

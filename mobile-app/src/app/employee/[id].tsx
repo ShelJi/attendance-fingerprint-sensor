@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSession } from '../../session';
 import { query } from '../../api';
+import { SessionCard } from '../../session-card';
 import { Detail } from '../../types';
-import { Avatar, Badge, Body, Button, Card, Caption, Column, DateRange, Divider, EmptyState, ErrorText, IconTile, Label, Loading, Row, Screen, Section, Title, duration, stamp, useAction, useResource, validateRange } from '../../ui';
+import { Avatar, Badge, Body, Button, Card, Caption, Column, DateRange, EmptyState, ErrorText, Label, Loading, Row, Screen, Section, Title, useAction, useResource, validateRange } from '../../ui';
 export default function EmployeeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>(); const { api } = useSession();
   const [start, setStart] = useState(''); const [end, setEnd] = useState('');
@@ -16,10 +17,10 @@ export default function EmployeeDetail() {
     <DateRange start={start} end={end} onStart={setStart} onEnd={setEnd} disabled={resource.loading} onApply={() => void action.run(async () => { validateRange(start, end); setFilter({ start_date: start, end_date: end, page: 1 }); })} />
     <ErrorText error={action.error || resource.error} />{resource.loading && <Loading />}
     {data && <><Card tone="primary"><Label>Total worked</Label><Title>{data.total_worked}</Title><Badge>{data.page_obj.count} sessions</Badge></Card><Section title="Session timeline" />
-      {data.page_obj.results.map(row => <Card key={row.id}><Row><IconTile name="time-outline" tone={row.logout_at ? 'primary' : 'teal'} /><Column><Label>{duration(row.worked_hours)} worked</Label><Caption>Session #{row.id}</Caption></Column></Row><Badge tone={row.logout_at ? 'primary' : 'teal'}>{row.logout_at ? 'Completed' : 'Active session'}</Badge><Divider /><Caption>CHECK IN</Caption><Body>{stamp(row.login_at)}</Body><Caption>CHECK OUT</Caption><Body>{row.logout_at ? stamp(row.logout_at) : 'Awaiting checkout'}</Body></Card>)}
+      {data.page_obj.results.map(row => <SessionCard key={row.id} session={row} showDuration />)}
       {!data.page_obj.count && <EmptyState icon="time-outline" title="No sessions in this range" message="Try a wider date range to see more attendance." />}
       <Body>Page {data.page_obj.page} of {data.page_obj.pages}</Body>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}><View style={{ flex: 1, minWidth: 120 }}><Button title="Previous" icon="chevron-back-outline" variant="secondary" disabled={!data.page_obj.has_previous} onPress={() => setFilter({ ...filter, page: data.page_obj.page - 1 })} /></View><View style={{ flex: 1, minWidth: 120 }}><Button title="Next" icon="chevron-forward-outline" variant="secondary" disabled={!data.page_obj.has_next} onPress={() => setFilter({ ...filter, page: data.page_obj.page + 1 })} /></View></View></>}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}><View style={{ flex: 1, minWidth: 120 }}><Button title="Previous" icon="chevron-back-outline" variant="secondary" disabled={!data.page_obj.has_previous} onPress={() => setFilter({ ...filter, page: data.page_obj.page - 1 })} /></View><View style={{ flex: 1, minWidth: 120 }}><Button title="Next" icon="chevron-forward-outline" variant="secondary" disabled={!data.page_obj.has_next} onPress={() => setFilter({ ...filter, page: data.page_obj.page + 1 })} /></View></View></>}
     <Button title="Refresh attendance" variant="ghost" icon="refresh-outline" disabled={resource.loading} onPress={() => void resource.refresh()} />
   </Screen>;
 }

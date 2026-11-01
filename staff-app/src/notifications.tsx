@@ -1,53 +1,77 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { Api } from './api';
 
-type Notice = { id: number; name: string; action: string; occurred_at: string; mode: string };
-export function useAttendanceAlerts(api: Api | null, path: string) {
-  const [queue, setQueue] = useState<{ id: number; text: string; owner: Api }[]>([]);
-  const current = queue[0];
-  const seen = useRef(new Set<number>());
-  const announce = useCallback((id: number, text: string) => {
-    if (!api || seen.current.has(id)) return;
-    seen.current.add(id); setQueue(items => [...items, { id, text, owner: api }]);
-  }, [api]);
-  useEffect(() => {
-    if (!api) return;
-    let stopped = false; let loading = false; let cursor: number | null = null;
-    let timer: ReturnType<typeof setTimeout>;
-    seen.current = new Set();
-    async function poll() {
-      if (stopped || loading) return;
-      if (AppState.currentState !== 'active') { timer = setTimeout(poll, 5000); return; }
-      loading = true; let delay = 5000;
-      try {
-        const data = await api!.get<{ notifications: Notice[]; cursor: number; has_more: boolean }>(path + (cursor === null ? '' : `?after=${cursor}`));
-        if (stopped) return;
-        if (cursor === null) setQueue(items => items.filter(item => item.owner === api));
-        for (const item of data.notifications) {
-          if (cursor === null) { seen.current.add(item.id); continue; }
-          announce(item.id, `${item.name} ${item.action === 'login' ? 'checked in' : 'checked out'} · ${new Date(item.occurred_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
-        }
-        cursor = data.cursor;
-        if (data.has_more) delay = 100;
-      } catch { /* The durable feed is retried when the connection returns. */ }
-      finally { loading = false; if (!stopped) timer = setTimeout(poll, delay); }
-    }
-    void poll();
-    const listener = AppState.addEventListener('change', state => { if (state === 'active') { clearTimeout(timer); void poll(); } });
-    return () => { stopped = true; clearTimeout(timer); listener.remove(); };
-  }, [api, path, announce]);
-  useEffect(() => {
-    if (!current) return;
-    const timer = setTimeout(() => setQueue(items => items.slice(1)), 4500);
-    return () => clearTimeout(timer);
-  }, [current]);
-  return { text: api && current?.owner === api ? current.text : undefined, announce, dismiss: () => setQueue(items => items.slice(1)) };
+// Expo Go cannot load the push module included in our native app builds.
+const Notifications: typeof import('expo-notifications') | null =
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- Static imports run before the Expo Go guard.
+  Platform.OS !== 'web' && !isRunningInExpoGo() ? require('expo-notifications') : null;
+
+Notifications?.setNotificationHandler({
+  handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
+});
+
+async function registerDevice(api: Api, stopped = () => false) {
+  if (!Notifications) throw new Error('Use the installed app.');
+  if (Platform.OS === 'android') await Notifications.setNotificationChannelAsync('attendance', {
+    name: 'Attendance', importance: Notifications.AndroidImportance.HIGH, sound: 'default',
+  });
+  let permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted && permission.canAskAgain) permission = await Notifications.requestPermissionsAsync();
+  if (!permission.granted) throw new Error('Notifications disabled.');
+  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  if (!projectId) throw new Error('Notifications unavailable.');
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+  if (!stopped()) await api.post('notifications/device/', { token });
+  return token;
 }
 
-export function AttendanceToast({ text, onDismiss }: { text?: string; onDismiss: () => void }) {
-  const insets = useSafeAreaInsets();
-  if (!text) return null;
-  return <View pointerEvents="box-none" style={{ position: 'absolute', top: insets.top + 8, left: 16, right: 16, zIndex: 1000, alignItems: 'center' }}><Pressable accessibilityRole="button" accessibilityLabel={`${text}. Dismiss notification`} onPress={onDismiss} style={{ width: '100%', maxWidth: 600, borderRadius: 16, padding: 20, backgroundColor: '#183E32', borderColor: '#62BB8B', borderWidth: 1 }}><Text accessibilityLiveRegion="polite" style={{ color: 'white', fontSize: 16, lineHeight: 24 }}>{text}</Text></Pressable></View>;
+export async function testNotification(api: Api, onSent: () => void = () => {}) {
+  const token = await registerDevice(api);
+  const notifications = Notifications!;
+  const testId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let confirm!: (received: boolean) => void;
+  const received = new Promise<boolean>(resolve => { confirm = resolve; });
+  const listener = notifications.addNotificationReceivedListener(notification => {
+    if (notification.request.content.data?.test_id === testId) confirm(true);
+  });
+  try {
+    const result = await api.post<{ sent: boolean }>('notifications/test/', { token, test_id: testId });
+    if (!result.sent) throw new Error('Not sent.');
+    onSent();
+    timer = setTimeout(() => confirm(false), 15000);
+    return (await received) ? 'Received.' : 'Sent.';
+  } finally {
+    listener.remove();
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export function useAttendanceAlerts(api: Api | null) {
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!api || !Notifications) return;
+    const notifications = Notifications;
+    let stopped = false;
+    let registering = false;
+    async function register() {
+      if (registering || stopped) return;
+      registering = true;
+      try {
+        await registerDevice(api!, () => stopped);
+        if (!stopped) setError('');
+      } catch (e) {
+        if (!stopped) setError((e as Error).message === 'Notifications disabled.' ? 'Notifications disabled.' : 'Notifications unavailable.');
+      } finally { registering = false; }
+    }
+    void register();
+    const state = AppState.addEventListener('change', value => { if (value === 'active') void register(); });
+    const tokens = notifications.addPushTokenListener(() => { void register(); });
+    return () => { stopped = true; state.remove(); tokens.remove(); };
+  }, [api, attempt]);
+  return { error, retry: () => setAttempt(value => value + 1) };
 }

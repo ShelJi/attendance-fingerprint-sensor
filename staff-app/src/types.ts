@@ -1,0 +1,6 @@
+export type Employee = { id: number; name: string; employee_id: string; fingerprint_id: string };
+export type Session = { id: number; login_at: string; logout_at: string | null; worked_hours: string | null; evidence?: { action: 'login' | 'logout'; mode: 'office' | 'outdoor'; latitude: number; longitude: number }[] };
+export type Detail = { employee: Employee; page_obj: { results: Session[]; page: number; pages: number; count: number; has_next: boolean; has_previous: boolean }; total_worked: string };
+export type Calendar = { year: number; month: number; calendar_days: { date: string; employee_count: number; total_worked_seconds: number; app_logins?: number; device_logins?: number }[] };
+export type Day = { date: string; employee_count: number; total_worked: string; employees: { employee_id: number; name: string; login_at: string; logout_at: string | null; worked_hours: string; is_active: boolean; app_logins?: number; device_logins?: number; sessions?: Session[] }[] };
+export type Report = { grand_total: string; total_records: number; start_date: string; end_date: string; report_data: { employee: Employee; employee_total: string; records: { date: string; login_at: string | null; logout_at: string | null; worked_hours: string; sessions: number; app_logins?: number; device_logins?: number }[] }[] };

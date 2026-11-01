@@ -48,6 +48,32 @@ from io import BytesIO
 
 # Preserve the HTML views while allowing mobile routes to serialize their context.
 from .mobile_render import render
+from .mobile_render import serialize
+from .models import AttendanceEvidence
+from django.db.models import Exists, OuterRef
+
+def attendance_sessions(request):
+    sessions = AttendanceSession.objects.prefetch_related("evidence")
+    employee = getattr(request, "personal_employee", None)
+    if employee is not None:
+        sessions = sessions.filter(employee=employee)
+    source = request.GET.get("source", "all")
+    if source in ("app", "device"):
+        sessions = sessions.annotate(app_login=Exists(AttendanceEvidence.objects.filter(session_id=OuterRef("pk"), action="login")))
+        sessions = sessions.filter(app_login=source == "app")
+    return sessions
+
+
+def login_groups(sessions):
+    groups = defaultdict(lambda: {"sessions": [], "app_logins": 0, "device_logins": 0})
+    for session in sessions:
+        key = (session.employee_id, timezone.localdate(session.login_at).isoformat())
+        group = groups[key]
+        group["sessions"].append(session)
+        source = "app" if any(item.action == "login" for item in session.evidence.all()) else "device"
+        group[source + "_logins"] += 1
+    return groups
+
 
 # ============================================================
 # ATTENDANCE SCAN API (Pico → Backend)
@@ -401,6 +427,7 @@ def employee_detail(request, employee_id):
 
     attendance = (
         employee.attendance_sessions
+        .prefetch_related("evidence")
         .order_by("-login_at")
     )
 
@@ -867,7 +894,7 @@ def calendar_view(request):
         ).date()
 
     sessions = (
-        AttendanceSession.objects
+        attendance_sessions(request)
         .filter(
             login_at__date__gte=start_date,
             login_at__date__lt=end_date,
@@ -977,12 +1004,17 @@ def calendar_view(request):
     # CONVERT SET TO COUNT
     # ---------------------------------------------------------
 
+    sources = defaultdict(lambda: {"app_logins": 0, "device_logins": 0})
+    for (_, day), group in login_groups(sessions).items():
+        sources[day]["app_logins"] += group["app_logins"]
+        sources[day]["device_logins"] += group["device_logins"]
     calendar_days = []
 
     for item in calendar_data.values():
 
         calendar_days.append({
             "date": item["date"],
+            **sources[item["date"]],
 
             "employee_count": len(
                 item["employee_ids"]
@@ -1038,7 +1070,7 @@ def calendar_day_data(request):
         )
 
     sessions = (
-        AttendanceSession.objects
+        attendance_sessions(request)
         .filter(
             login_at__date=selected_date,
         )
@@ -1268,6 +1300,11 @@ def calendar_day_data(request):
             "is_active": item["is_active"],
         })
 
+    groups = login_groups(sessions)
+    for person in employees:
+        group = groups[(person["employee_id"], selected_date.isoformat())]
+        person.update({"app_logins": group["app_logins"], "device_logins": group["device_logins"], "sessions": serialize(group["sessions"])})
+
     employees.sort(
         key=lambda x: x["name"].lower()
     )
@@ -1358,7 +1395,7 @@ def attendance_report(request):
     # ---------------------------------------------------------
 
     sessions = (
-        AttendanceSession.objects
+        attendance_sessions(request)
         .filter(
             login_at__date__gte=start,
             login_at__date__lte=end,
@@ -1776,6 +1813,12 @@ def attendance_report(request):
     # RENDER
     # ---------------------------------------------------------
 
+    groups = login_groups(sessions)
+    for employee_report in report_data:
+        for record in employee_report["records"]:
+            group = groups[(employee_report["employee"].pk, record["date"].isoformat())]
+            record.update({"app_logins": group["app_logins"], "device_logins": group["device_logins"]})
+
     return render(
         request,
         "attendance/report.html",
@@ -1797,6 +1840,7 @@ def attendance_report(request):
     
     
 # @login_required
+@login_required
 def attendance_report_pdf(request):
     today = timezone.localdate()
 
@@ -1842,7 +1886,7 @@ def attendance_report_pdf(request):
     # ---------------------------------------------------------
 
     sessions = (
-        AttendanceSession.objects
+        attendance_sessions(request)
         .filter(
             login_at__date__gte=start,
             login_at__date__lte=end,
@@ -2035,6 +2079,7 @@ def attendance_report_pdf(request):
     # BUILD PDF CONTENT
     # ---------------------------------------------------------
     
+    groups = login_groups(sessions)
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
@@ -2133,6 +2178,7 @@ def attendance_report_pdf(request):
                 "Date",
                 "Login",
                 "Logout",
+                "Login source",
                 "Worked",
             ]
         ]
@@ -2182,12 +2228,14 @@ def attendance_report_pdf(request):
                 else "Working"
             )
 
+            group = groups[(employee_id, item["date"].isoformat())]
             table_data.append([
                 item["date"].strftime(
                     "%d-%m-%Y"
                 ),
                 login_display,
                 logout_display,
+                Paragraph("<br/>".join(label + ": " + str(group[key]) for key, label in (("app_logins", "App logins"), ("device_logins", "Device logins")) if group[key]), normal_style),
                 worked_display,
             ])
 
@@ -2211,6 +2259,7 @@ def attendance_report_pdf(request):
         table_data.append([
             "",
             "",
+            "",
             "Period Total",
             employee_total_display,
         ])
@@ -2223,10 +2272,11 @@ def attendance_report_pdf(request):
             table_data,
             repeatRows=1,
             colWidths=[
+                40 * mm,
+                30 * mm,
+                30 * mm,
                 45 * mm,
                 35 * mm,
-                35 * mm,
-                40 * mm,
             ],
         )
 

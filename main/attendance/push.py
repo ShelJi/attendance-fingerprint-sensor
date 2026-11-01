@@ -33,14 +33,18 @@ def send_device(device_id):
         if device is None:
             return
         session = Session.objects.filter(session_key=device.session_key, expire_date__gt=timezone.now()).first()
-        if not device.user.is_active or not is_manager(device.user) or not session or str(session.get_decoded().get("_auth_user_id")) != str(device.user_id):
+        allowed = hasattr(device.user, "employee") if device.personal else is_manager(device.user)
+        if not device.user.is_active or not allowed or not session or str(session.get_decoded().get("_auth_user_id")) != str(device.user_id):
             device.delete()
             return
         # Also invalidate registrations after password changes/revoked sessions.
         if session.get_decoded().get("_auth_user_hash") != device.user.get_session_auth_hash():
             device.delete()
             return
-        events = list(AttendanceNotification.objects.filter(pk__gt=device.cursor).select_related("session__employee").order_by("pk")[:100])
+        events = AttendanceNotification.objects.filter(pk__gt=device.cursor)
+        if device.personal:
+            events = events.filter(session__employee__user=device.user)
+        events = list(events.select_related("session__employee").order_by("pk")[:100])
         if not events:
             return
         messages = []

@@ -378,6 +378,7 @@
                                 <th>Logout</th>
                                 <th>Day Worked</th>
                                 <th>Sessions</th>
+                                <th>Login source</th>
                             </tr>
                         </thead>
 
@@ -433,6 +434,7 @@
                                     <td>
                                         {{ item.sessions }}
                                     </td>
+                                    <td>{% if item.app_logins %}App logins: {{ item.app_logins }}<br>{% endif %}{% if item.device_logins %}Device logins: {{ item.device_logins }}{% endif %}</td>
 
                                 </tr>
 

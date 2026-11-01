@@ -1,5 +1,32 @@
 # Mobile UI redesign
 
+## Compact sizing pass — both apps
+
+The current design tokens live in `mobile-app/src/design.ts` and `staff-app/src/design.ts`, with matching values. This pass covers all 11 admin routes and 7 staff routes. The older audit below describes the earlier design and is retained as history.
+
+| Element | Compact specification |
+| --- | --- |
+| Main heading | 24px / 30px line height |
+| Section heading | 18px / 24px |
+| Body / labels / buttons | 14px / 20px |
+| Secondary / captions | 12px / 18px or 16px |
+| Inputs | 16px text, 48px minimum control height |
+| Page padding | 12px below 360px wide; 16px otherwise |
+| Cards | 16px padding, 12px internal gaps, 16px corners |
+| Buttons / icon buttons / chips | 48px / 44px / 44px minimum targets |
+| Avatars / decorative tiles / logo | 36px minimum / 40px / 40px |
+| Bottom navigation | 64px minimum plus safe area; grows with labels and native font scale |
+| Calendar | 44px minimum day height and at least 44px wide at 320px |
+
+The calendar uses near-edge spacing only on the narrowest screens so all seven columns retain touch targets. Screen and people-list gutters use safe-area insets. Date inputs and dashboard metrics reflow with native font scale; avatars and multiline controls can grow. No font scaling caps or whole-screen transforms were added. Existing button press feedback, palette, branding, attendance logic and privacy rules remain unchanged.
+
+Browser validation used isolated fixtures through `testing/responsive-ui-server.cjs`, never live attendance data. The final audit covers all routes at actual widths 320, 360, 375, 390, 412, 480, 768, and 844px (landscape), plus 50% larger text at 320px. It checks horizontal overflow, 44px targets, label clipping, and bottom navigation staying within the viewport. 164 route/viewport checks passed. Light and dark previews were inspected. Screenshots and the measured audit are in ignored `mobile-app/test-results/compact-ui/`.
+
+Both apps pass lint, TypeScript, unit tests, and web/Android exports. Physical Android/iOS Dynamic Type, keyboard and safe-area behavior still need device verification. Native system alerts use the OS layout.
+
+## Earlier design audit
+
+
 ## Audit and scope
 
 The existing app uses Expo SDK 58, React Native 0.88, TypeScript, Expo Router,

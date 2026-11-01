@@ -1,6 +1,7 @@
 import json
 import re
 from functools import wraps
+from inspect import unwrap
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -90,23 +91,80 @@ def sign_out(request):
     return JsonResponse({"success": True, **native_session(request)})
 
 
-def push_device(request):
+def push_device(request, personal=False):
+    if personal and not Employee.objects.filter(user=request.user).exists():
+        return JsonResponse({"error": "No employee profile linked to this account"}, status=403)
     data = json_body(request)
     token = data.get("token") if data else None
     if not isinstance(token, str) or not re.fullmatch(r"(?:Exponent|Expo)PushToken\[[A-Za-z0-9_-]{1,200}\]", token):
         return JsonResponse({"error": "Valid Expo push token required"}, status=400)
     with transaction.atomic():
         device, created = AdminPushDevice.objects.get_or_create(token=token, defaults={
-            "user": request.user, "session_key": request.session.session_key,
+            "user": request.user, "session_key": request.session.session_key, "personal": personal,
             "cursor": AttendanceNotification.objects.order_by("-pk").values_list("pk", flat=True).first() or 0,
         })
-        if not created and (device.user_id != request.user.pk or device.session_key != request.session.session_key):
+        if not created and (device.user_id != request.user.pk or device.session_key != request.session.session_key or device.personal != personal):
             device.user = request.user
             device.session_key = request.session.session_key
+            device.personal = personal
             device.cursor = AttendanceNotification.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
             device.save()
             device.pushreceipt_set.all().delete()
     return JsonResponse({"success": True})
+
+
+def personal_view(view, methods=("GET",)):
+    @wraps(view)
+    def wrapped(request):
+        employee = Employee.objects.filter(user=request.user).first()
+        if employee is None:
+            return JsonResponse({"error": "No employee profile linked to this account"}, status=403)
+        request.personal_employee = employee
+        response = unwrap(view)(request)
+        response["Cache-Control"] = "private, no-store"
+        return response
+    return endpoint(wrapped, methods, management=False)
+
+
+def my_profile(request):
+    return unwrap(views.employee_detail)(request, request.personal_employee.pk)
+
+
+def my_push_device(request):
+    return push_device(request, personal=True)
+
+
+def my_notification_settings(request):
+    # Older app builds may still call this endpoint; notifications stay enabled.
+    return JsonResponse({"enabled": True})
+
+
+def my_test_notification(request):
+    from requests import RequestException
+    from .models import PushReceipt
+    from .push import expo_request
+
+    data = json_body(request)
+    token = data.get("token") if data else None
+    test_id = data.get("test_id") if data else None
+    if not isinstance(token, str) or not isinstance(test_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", test_id):
+        return JsonResponse({"error": "Not sent."}, status=400)
+    device = AdminPushDevice.objects.filter(token=token, user=request.user, session_key=request.session.session_key, personal=True).first()
+    if device is None:
+        return JsonResponse({"error": "Device unavailable."}, status=403)
+    try:
+        tickets = expo_request("send", [{"to": device.token, "title": "Attendance", "body": "Test notification.", "sound": "default", "channelId": "attendance", "priority": "high", "data": {"test_id": test_id}}])
+        if not isinstance(tickets, list) or len(tickets) != 1:
+            raise ValueError("Unexpected push ticket")
+        ticket = tickets[0]
+        if ticket.get("status") != "ok" or not ticket.get("id"):
+            if ticket.get("details", {}).get("error") == "DeviceNotRegistered":
+                device.delete()
+            return JsonResponse({"error": "Not sent."}, status=502)
+        PushReceipt.objects.get_or_create(ticket=ticket["id"], defaults={"device": device})
+    except (RequestException, ValueError):
+        return JsonResponse({"error": "Not sent."}, status=503)
+    return JsonResponse({"sent": True})
 
 
 @never_cache
@@ -150,7 +208,7 @@ def my_attendance(request):
             if action in ("login", "logout"):
                 AttendanceEvidence.objects.create(session=attendance_session, action=action, **proof)
                 notification_id = attendance_session.notifications.get(action=action).pk
-    sessions = employee.attendance_sessions.filter(login_at__date=timezone.localdate()).order_by("-login_at")
+    sessions = employee.attendance_sessions.filter(login_at__date=timezone.localdate()).prefetch_related("evidence").order_by("-login_at")
     latest = sessions.first()
     return JsonResponse({
         "employee": serialize(employee), "username": request.user.get_username(),
@@ -192,6 +250,15 @@ def office_configuration(request, office_id=None):
 
 
 urlpatterns = [
+    path("me/notifications/test/", personal_view(my_test_notification, ("POST",))),
+    path("me/notification-settings/", personal_view(my_notification_settings, ("GET", "POST"))),
+    path("me/profile/", personal_view(my_profile)),
+    path("me/calendar/", personal_view(views.calendar_view)),
+    path("me/calendar/day/", personal_view(views.calendar_day_data)),
+    path("me/report/", personal_view(views.attendance_report)),
+    path("me/report/pdf/", personal_view(views.attendance_report_pdf)),
+    path("me/attendance/records/", personal_view(attendance_records)),
+    path("me/notifications/device/", endpoint(my_push_device, ("POST",), management=False)),
     path("notifications/device/", endpoint(push_device, ("POST",))),
     path("configuration/offices/", endpoint(office_configuration, ("GET", "POST"))),
     path("configuration/offices/<int:office_id>/", endpoint(office_configuration, ("GET", "POST"))),

@@ -5,14 +5,39 @@
     "slug": "attendance-staff",
     "version": "1.0.0",
     "scheme": "attendance-staff",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "ios": { "bundleIdentifier": "com.attendance.staff", "entitlements": { "com.apple.developer.networking.wifi-info": true } },
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.attendance.staff",
+      "entitlements": {
+        "com.apple.developer.networking.wifi-info": true
+      }
+    },
     "android": {
       "package": "com.attendance.staff",
-      "permissions": ["android.permission.ACCESS_WIFI_STATE", "android.permission.ACCESS_NETWORK_STATE", "android.permission.ACCESS_FINE_LOCATION"],
-      "adaptiveIcon": { "foregroundImage": "./assets/pl-adaptive-icon.png", "backgroundColor": "#F7F7F7" }
+      "permissions": [
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/pl-adaptive-icon.png",
+        "backgroundColor": "#F7F7F7"
+      }
     },
-    "plugins": ["expo-router", ["expo-location", { "locationWhenInUsePermission": "PL attendance uses your location only when you submit attendance to verify your workplace." }]]
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PL attendance uses your location only when you submit attendance to verify your workplace."
+        }
+      ],
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-font",
+      "expo-notifications",
+      "expo-status-bar"
+    ]
   }
 }

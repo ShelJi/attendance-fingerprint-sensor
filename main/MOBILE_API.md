@@ -233,3 +233,17 @@ unknown IDs return 404. Staff accounts receive 403, signed-out requests 401.
 No Wi-Fi password is accepted or stored by this form. Saved changes are used by
 the next staff office attendance submission. Set `is_active` to false to disable
 an office without deleting historical evidence.
+
+
+## Personal staff features
+
+Authenticated staff can use `me/profile/`, `me/calendar/`, `me/calendar/day/`, `me/report/`, `me/report/pdf/`, and `me/attendance/records/`. These views derive the employee exclusively from the logged-in user and apply that scope before computing totals or rendering PDFs/evidence. Employee IDs in requests cannot widen the scope. An unlinked account receives 403. Management routes remain restricted, including the legacy PDF URL.
+
+`POST me/notifications/device/` registers personal push delivery. It accepts the same Expo token payload as management registration but marks the subscription personal; the worker sends only events belonging to that user's employee. Deploy migrations and run `send_attendance_push`. The staff app needs its own EAS/FCM/APNs credentials.
+
+
+`GET/POST me/notification-settings/` remains for older builds and always returns `{"enabled": true}`. Old saved notification preferences are no longer used.
+
+`POST me/notifications/test/` accepts `{"token": "ExponentPushToken[...]", "test_id": "unique-id"}`. The token must be registered as a personal device for the authenticated user and current session. The endpoint sends only to that device and returns `{"sent": true}` after Expo accepts the test. Delivery receipts are tracked; failures return a non-success response. This does not create attendance records. The native app confirms receipt by matching `test_id`.
+
+Serialized attendance sessions now include an `evidence` array with action, mode, latitude and longitude. An empty array represents no saved app evidence. Profile/today routes retain their existing ownership checks; clients must use each action’s own coordinates for maps.

@@ -1,188 +1,96 @@
-# PL attendance
+# PL attendance — personal staff app
 
-Expo SDK 58 / React Native app for employees on Android and iOS. It connects to the same Django backend as the website and management app, while exposing only the employee's personal attendance workflow.
+The staff app includes the admin app’s personal attendance features: overview, profile and session history, monthly calendar with bottom refresh, reports and PDF sharing, Office/Outdoor activity with verification details, native phone notifications, saved login, password settings, 12-hour times, and device light/dark appearance. Office Wi-Fi/GPS verification and outdoor work descriptions remain available on Today.
 
-## Features
+Every personal data endpoint derives the employee from the authenticated user. Staff cannot choose another employee through query parameters, URLs, or notification registration. Calendar counts, totals, session history, PDF contents, GPS/work evidence and phone notifications contain only that employee’s records. Existing management accounts keep their admin access. Staff have no people-management, employee creation, device-control or office-configuration screens or API access.
 
-- Sign in with an employee username and password.
-- Check in or check out with a clear current attendance status.
-- View today's sessions, including check-in/out times and open sessions.
-- Refresh attendance after using another device or the fingerprint reader.
-- Change the account password without leaving the current session.
-- Sign out, with visible loading, validation, cooldown and network error states.
-- Office verification using admin-configured Wi-Fi SSID/BSSID and GPS radius.
-- Outdoor attendance with GPS, place name and daily work description; no photos.
-- Toast notifications for your own accepted check-ins/outs and fingerprint scans while signed in.
-
-Employee creation, team reports and sensor administration belong to the [management app](../mobile-app/README.md) and [web portal](../main/README.md).
-
-## Run
-
-First apply the backend migration from the repository root:
-
-```powershell
-uv sync
-.venv/Scripts/python.exe main/manage.py migrate
-.venv/Scripts/python.exe main/manage.py runserver 0.0.0.0:8000
-```
-
-Then in `staff-app`:
+## Run locally
 
 ```powershell
 npm ci
-Copy-Item .env.example .env
+# First setup only: copy .env.example to .env, then set your backend URL.
+npx expo start --clear
 ```
 
-Copy the example only on first setup. Set `.env` to the backend computer's Wi-Fi IP, replacing this example:
+Set `EXPO_PUBLIC_API_URL` in `staff-app/.env` to the Django server origin (no `/api/mobile/` suffix). On a phone, use the computer’s reachable Wi-Fi IP rather than localhost. The app embeds the URL during bundling and uses it for all backend requests without displaying it in Settings; old stored URL choices are ignored. Missing/invalid URLs fail app configuration. The root `.easignore` includes this public configuration file in cloud builds. CI builds must supply the same file or environment variable.
 
-```dotenv
-EXPO_PUBLIC_API_URL=http://192.168.1.20:8000
-```
+The configured HTTP URL is supported in installable builds as requested. HTTP sends credentials and attendance traffic without transport encryption. Rebuild to update the native network settings when changing between HTTP and HTTPS.
 
-Find the IP with `ipconfig` on the computer, then start the staff app:
+## Screens
+
+- **Today:** your current status, today’s sessions, verified office/outdoor check-in/out, refresh and sign-out.
+- **My profile:** your employee details, total worked time, date-filtered session history and pagination.
+- **Calendar:** your attendance days, worked time, day details, month navigation and bottom Refresh preserving the selected date.
+- **Reports:** your date-filtered work totals and daily breakdown, plus native PDF save/share.
+- **Bell / activity:** your Office/Outdoor/device history, source/date filters, GPS/Wi-Fi/work evidence and map links.
+- **Settings:** password changes and account details. Appearance follows the phone.
+
+Your employee ID is your username. Initial password is `12345` unless the admin chose another password. Change it in Settings. Native login stores the opaque session credential in Expo SecureStore, never your password. Reopening the app or restarting the phone restores and verifies the saved session; sign-out or server expiry clears it. Password changes preserve the current login and update its rotated credential. Credentials are bound to the build-time server origin. Browser previews use HttpOnly cookies instead of localStorage credentials.
+
+Attendance requires a linked employee account. Missing links are rejected. Office submissions require matching office Wi-Fi and GPS configured by the admin. Outdoor submissions require GPS, place name and work description. Existing five-minute attendance intervals remain enforced by the backend.
+
+## Backend deployment and native notifications
+
+Deploy this backend before distributing the updated staff app:
 
 ```powershell
-npm start -- --port 8082 --lan
+python manage.py migrate
+python manage.py send_attendance_push
 ```
 
-Leave both this terminal and Django running. Open this app's QR code in a compatible Expo client/build. PL admin can run separately on port 8081; both apps must use Django port 8000 as their backend. Restart Expo and reload the app after editing `.env`. The Server URL field can override the address for the current app session.
+Run one supervised push worker alongside Django; it serves both admin and personal staff subscriptions. Personal devices receive only their user’s events. Logout, session expiry/revocation, loss of the employee link, and invalid push tokens stop delivery. Submission retries and Expo receipts are tracked. Ambiguous network failures can cause duplicate notifications.
 
-## How it works
+Use the staff app’s **own EAS project**, Firebase app `com.attendance.staff`, and iOS bundle `com.attendance.staff`. Initialize/configure that EAS project and set `EXPO_PUBLIC_EAS_PROJECT_ID` in the build environment (or `extra.eas.projectId` in app config). Do not reuse the admin app’s project ID or Firebase client configuration. For Android, provide its `google-services.json` via the EAS file variable `GOOGLE_SERVICES_JSON` and upload the FCM v1 server credential to EAS. Configure APNs credentials for iOS. See [Expo push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/).
 
-PL attendance signs in to Django using an employee's linked account. It fetches only that employee's current-day sessions, evidence and attendance notifications. Password changes use the same account and keep the current session signed in. Passwords and server selection are not persisted by this app; reopening it starts from the configured default and asks for sign-in again.
+```powershell
+npx eas-cli@latest build --profile preview --platform android
+```
 
-When you submit attendance, the app captures a fresh GPS fix. Office mode also reads the connected Wi-Fi SSID/BSSID; Outdoor mode sends your place name and work description. Django verifies those readings, chooses the employee from the signed-in account and saves its own timestamp. It opens or closes the shared attendance session and returns the updated status. This is the same session history used by fingerprint scans and PL admin.
+A new native binary is required for the added modules/configuration. Allow phone notifications and sign in once to register. Expo Go safely skips push registration; the rest of the app can be previewed there. Closed-app push requires the native build and configured provider credentials. PDF sharing and Wi-Fi/GPS verification need native device testing. OS restrictions and force-stop can prevent notifications.
 
-The app displays immediate feedback for an accepted action and checks your personal event feed while active. A fingerprint check-in/out can therefore appear in this app after polling. Refresh reads current server state; it does not create attendance. There is no offline submission queue or photo requirement.
+## Personal API
 
-Use an Android/iOS build for reliable Wi-Fi verification. iOS needs the configured Access Wi-Fi Information entitlement in a signed build; Expo Go may not expose SSID/BSSID. Enter your backend origin on the sign-in screen, or set `EXPO_PUBLIC_API_URL` before starting Expo. On a physical phone use the computer's LAN address rather than `127.0.0.1`. Release builds require HTTPS. Use a distinct origin/session for management and employee accounts during testing.
+All routes below require authentication; data routes require a linked employee. They accept no employee selector:
 
-The default origin is `http://127.0.0.1:8000`. For a phone on the same Wi-Fi, copy `.env.example` to `.env`, replace the IP with the backend computer's Wi-Fi address and restart Expo; for example `EXPO_PUBLIC_API_URL=http://192.168.1.20:8000`. The Android emulator can use `http://10.0.2.2:8000`. Enter only the origin, without `/api/mobile/`. The app targets native mobile; browser authentication/CORS is not configured.
-
-## Accounts and sign-in
-
-Each employee's unique `employee_id` is their username. New employees start with password **12345** unless the manager enters a custom password. New employees created through the management API, web form, Django admin or `Employee.objects.create()` receive accounts automatically. Names are not used because they need not be unique. Existing accounts retain their current passwords, including older employee-ID defaults. Editing employee details does not reset their password or change their login username; an administrator can explicitly reset it using the employee form's Password field.
-
-If an employee ID already matches an existing Django username, migration stops without claiming that account or resetting its password. Resolve that username collision before migrating. Account creation should use `Employee.save()` / `objects.create()`, not `bulk_create()`.
-
-Passwords are never stored by the app. Authentication uses the backend's existing session cookies and CSRF protection. Reopen the app and sign in again; no persistent credential storage is added.
-
-Attendance uses server timestamps and the same five-minute cooldown as fingerprint scans. Staff can only submit and view their own attendance; management accounts without an employee profile cannot submit attendance. Office submissions now require Wi-Fi and GPS matching; outdoor submissions require fresh GPS, place and work details. See [workplace setup and notification behavior](../main/WORKPLACE_ATTENDANCE.md).
-
-## Daily workflow
-
-1. Enter the backend origin and sign in. On first use, open **Change password** and replace the initial password.
-2. Choose **In office** or **Outdoor**. For outdoor work enter a place name and the day’s work description. Enable precise location and connect to office Wi-Fi when in office.
-3. Tap **Verify & check in** when starting work or **Verify & check out** when finished. The backend requires at least five minutes after check-in.
-4. For another session that day, wait five minutes after check-out before checking in again.
-5. Tap **Refresh attendance** after fingerprint scans or if another client changed attendance. Sign out when done.
-
-To change your password, tap **Change password**, enter your current password and the same new password in both replacement fields, then tap **Save password**. A successful change keeps you signed in. Close password settings to clear unfinished entries. If the session expires, sign in again. Ask the administrator to correct your name, employee ID, fingerprint ID, login username or active status in Django Admin; the staff app edits only your password and attendance submissions.
-
-### First sign-in example
-
-If your administrator creates Employee ID `EMP-001` without entering a custom password:
-
-1. Enter the local backend address on the sign-in screen.
-2. Sign in with Username **EMP-001** and Password **12345**.
-3. Tap **Change password**. Enter `12345` as Current password, then enter the same new password in New password and Confirm new password.
-4. Tap **Save password**. You remain signed in; use the new password on future sign-ins.
-
-If your administrator chose a custom initial password, use that instead of `12345`. Existing accounts keep their current password when the application is updated. If you forget it, ask an administrator to reset it through Django Admin's employee Password field, then change it after signing in again.
-
-Password changes require the current password and matching new-password fields. Django rejects weak replacements, including overly short, common, numeric or overly similar passwords. Changing the initial password is recommended but is not enforced at sign-in.
-
-The backend groups today's activity in `Asia/Kolkata`. An open session from a previous day is not automatically closed. The app requires a network connection and does not queue offline attendance. Server selection and credentials are not persisted by app code; there is no self-service account registration screen.
-
-## Office attendance: required setup and checks
-
-A manager must first add an active office using **Dashboard → App configuration**, PL admin **Overview → App configuration**, or Django Admin (`/admin/`) → **Office locations**. It contains the exact SSID, router/access-point BSSID, centre coordinates, allowed radius and maximum GPS uncertainty. This is configured in the backend, not entered by staff on each check-in. Add a policy per access point when several BSSIDs serve the office. Do not enter the phone’s MAC or a Wi-Fi password.
-
-1. Connect the phone to the configured Wi-Fi.
-2. Enable location services and grant precise foreground location permission.
-3. Choose **In office**, then tap **Verify & check in/out**.
-4. The app obtains a current GPS fix and reads connected Wi-Fi SSID/BSSID. Missing identifiers or permissions block submission.
-5. The server independently compares the submitted readings with an active policy and records evidence only for an accepted attendance action.
-
-Both Wi-Fi and location must match. Default policy: 100 m radius, maximum 50 m uncertainty. The full GPS uncertainty circle must fit inside the configured radius; being near its edge may still fail. Wi-Fi matching is SSID case-sensitive and BSSID case-insensitive. Office mode is disabled in the app if the backend reports no active office; direct unverified API submissions are rejected as well.
-
-All staff GPS readings must have finite valid coordinates, accuracy within 0.1–100 m inclusive, no reported mock location, and a timezone-aware capture time no older than two minutes (up to thirty seconds clock lead allowed). Office policies may impose a tighter uncertainty limit. The phone’s GPS attempt times out after thirty seconds; an unavailable reading never bypasses validation.
-
-On iOS, the signed native app must include **Access Wi-Fi Information**, already configured in `app.json`, and meet permission requirements. Expo Go may not return SSID/BSSID. On Android, use the configured Wi-Fi/network/fine-location permissions and enabled location services. Test a real phone; an emulator, approximate location or hidden/redacted SSID is not proof of a supported office setup.
-
-## Outdoor attendance: no photo required
-
-Choose **Outdoor** and enter a **Place name** (up to 200 characters) and **Today’s work description** (up to 4000). Both must contain non-whitespace text. Describe the actual day’s work; the place is staff-entered text, not an automatically verified reverse-geocoded address. The independently captured coordinates are shown to management alongside it.
-
-Tap **Verify & check in/out**. The app captures fresh GPS at submission time. Office Wi-Fi matching is not required in Outdoor mode. A camera/photo is not requested, uploaded, stored or used for verification. Both check-in and check-out need the location/place/work details; completed text can be reused or edited for checkout during the current app session.
-
-The selected mode belongs to each attendance action. For example, checking in at the office and checking out at a client site creates Office and Outdoor evidence for the same work session. The five-minute attendance rules still apply.
-
-## What is saved and who can see it
-
-The server saves the session/action, mode, coordinates, GPS uncertainty and capture time. Office evidence includes the matched office and SSID/BSSID; Outdoor evidence includes place name and work description. The app displays the latest captured coordinates and today’s own evidence/activity. It does not continuously track the phone or request background location access.
-
-Other employees cannot view your records. Management can view the submitted details in PL admin’s bell/activity screen, `/web/work-attendance/`, and Django Admin’s evidence view. The website/admin app can open the coordinates in an external map. No photo-verification data is collected.
-
-These are device-reported Wi-Fi/GPS measurements, not tamper-proof identity or presence attestation. Known mock readings are rejected, but the system does not prevent all modified-client/radio/GPS spoofing.
-
-## Personal toast notifications
-
-An accepted check-in/out produces an immediate toast. While signed in and active, the app polls your personal notification feed every five seconds and also shows new events created by your fingerprint scans. Toasts are queued, can be dismissed, and disappear after roughly 4.5 seconds each. Your displayed attendance refreshes after a toast; the explicit Refresh attendance action remains available.
-
-The notification ID prevents a local successful submission from being shown again when polling sees the same event. Cooldown attempts, failed validation, refreshes and stale actions do not create new notifications. Account sign-in/sign-out is separate from attendance check-in/out and does not publish attendance events.
-
-Existing history is used as the initial cursor baseline rather than replayed as old toasts on a fresh launch. Background polling is paused; it resumes when active. There is no OS push notification service, so a closed app does not receive a push alert. Management retains the durable attendance event history.
-
-## API and structure
-
-All calls use `/api/mobile/` with session cookies and CSRF protection:
-
-| Endpoint | Purpose |
+| Path under `/api/mobile/` | Purpose |
 | --- | --- |
-| `auth/session/`, `auth/login/`, `auth/logout/` | Session bootstrap, sign-in and sign-out |
-| `auth/password/` | Change the current user's password |
-| `me/attendance/` | GET personal status/activity; POST an explicit login/logout action |
-| `me/notifications/` | GET personal accepted attendance events with cursor polling |
-
-Attendance identity comes from the logged-in account; clients cannot choose another employee. Cooldown responses keep the existing status and display the reason. Stale actions trigger a refresh so the next attempt reflects current server state.
-
-The attendance POST is JSON and includes `action`, `mode` and `location`. Office adds `wifi_ssid`/`wifi_bssid`; Outdoor adds `place_name`/`work_description`. Action-only posts are no longer valid. GET/POST returns today’s sessions, `verification.office_configured`, the employee’s evidence and `notification_id` for an accepted submitted action. See [MOBILE_API.md](../main/MOBILE_API.md) for field-level examples and status codes. The app refuses sign-in against an older backend without verification support.
-
-`src/app/index.tsx` contains the employee screen; `_layout.tsx` configures navigation. `src/api.ts` handles HTTP and authentication, while `src/attendance.ts` contains attendance types and feedback messages. See the [API contract](../main/MOBILE_API.md) for payloads and response codes.
-
-`src/verification.ts` obtains one-shot GPS and connected Wi-Fi details; `src/notifications.tsx` handles personal polling, deduplication and the toast queue. There are no camera/photo dependencies in this flow. The configured application ID remains `com.attendance.staff`; its display name is **PL attendance**. `assets/pl-logo.jpg`, `pl-icon.png` and `pl-adaptive-icon.png` use the same artwork as PL admin. Launcher branding and native permission changes require a new installed build; Expo Go retains its own launcher identity.
+| `me/attendance/` | Today’s attendance and verified POST check-in/out |
+| `me/profile/` | Own profile/session history with date filters and pagination |
+| `me/calendar/` | Own month overview |
+| `me/calendar/day/` | Own date details |
+| `me/report/` | Own report and totals |
+| `me/report/pdf/` | Own PDF export |
+| `me/attendance/records/` | Own filtered activity/evidence |
+| `me/notifications/` | Own durable event feed |
+| `me/notifications/device/` | Register a personal push token |
+| `auth/session/`, `auth/login/`, `auth/logout/`, `auth/password/` | Session and password management |
 
 ## Checks
 
 ```powershell
-npm test
-npm run typecheck
 npm run lint
-npx expo export --platform android --output-dir dist
+npm run typecheck
+npm test
+npx expo export --platform android
+npx expo export --platform web
 ```
 
-For signed installable binaries, configure your Expo/EAS project and signing credentials, then run `npx eas-cli@latest build --platform android` or `--platform ios`.
+Backend privacy tests use two employees and check data, totals, PDF rows, notification recipients, forged employee selectors, missing employee links, and denial of management/legacy routes. Physical phone login restoration, Wi-Fi/GPS, PDF sharing and push delivery need end-to-end testing after rebuilding.
 
-Use `npx --yes expo-doctor` for dependency compatibility checks and `npx expo export --platform android --platform ios` for both native bundles. Native modules/configuration must be present in the installed build; restarting Metro alone does not add iOS entitlements to an old binary.
 
-## Troubleshooting and deployment
+## Compact mobile sizing
 
-| Symptom | Resolution |
-| --- | --- |
-| Invalid JSON / HTML response | Use the local Django origin on port 8000. Visit `/api/mobile/auth/session/` at that origin from the phone; expect JSON, not a website or Expo page |
-| App still uses a hosted/old address | Restart Expo after editing `.env`, reload the app and check Server URL before signing in |
-| Backend update required / 404 | Deploy backend API changes, apply migrations there, and restart its server |
-| No employee profile linked | Administrator must create/link the employee to the signed-in user |
-| Office mode disabled | Manager must enable a valid office in App configuration or Django Admin |
-| Office Wi-Fi mismatch | Compare exact SSID and access-point BSSID; a phone MAC is not the BSSID |
-| Wi-Fi details unavailable | Check permissions, actual Wi-Fi connection and location services; use an entitled iOS build |
-| GPS stale/inaccurate/outside radius | Check device clock, precise location and reception; retry with a fresh location |
-| 409 attendance changed | Refresh current state before retrying; another client may have changed the session |
-| Five-minute cooldown | Wait for the required interval; repeated attempts do not create events |
-| No toast while closed | In-app notifications do not provide closed-app push delivery |
-| Cannot connect locally | Phone/computer on the same reachable network, correct LAN origin and accessible backend port |
+`src/design.ts` defines the same 24/18/14/12 typography scale, 4/8px spacing grid, and component sizes as PL admin. Cards use 16px padding, fields/buttons retain 48px targets, and chips/icon buttons/calendar dates retain at least 44px targets. Page gutters adapt to phone width and safe areas. Navigation labels wrap in a bar that grows when necessary; native font scaling remains enabled. All staff screens were checked at 320–844px widths and with enlarged text using isolated fixtures. See [the sizing audit](../mobile-app/UI_REDESIGN.md).
 
-Deploy backend and migrations first, configure real office policies, then rebuild/install the staff app and set its origin. Local code and migrations do not update the hosted backend automatically. Test Office success, incorrect Wi-Fi/GPS rejection, Outdoor success without pictures, both check-in/out, password changes and a fingerprint-originated personal toast on physical phones.
 
-An exported bundle is not an APK/IPA. Physical-device networking, session cookies and the end-to-end attendance flow still require a smoke test against your backend. See the [repository overview](../README.md) for related components.
+## App sessions and notifications
+
+App-recorded session cards use a teal background and an App badge; fingerprint-only cards remain neutral. Check-in location and Check-out location open Google Maps with the corresponding action’s stored GPS coordinates, without rounding. Buttons appear only when that action has saved app evidence. Staff can still see only their own records; admins retain their authorized management view.
+
+Check-in and checkout notifications stay enabled in the app. The former preference is ignored, including for accounts that previously disabled it. Phone notification permission still applies.
+
+Settings now has **Test notification**. It registers the current phone, sends an authenticated test through the backend/Expo push service, and listens for that test ID. **Sent** means Expo accepted it; **Received** means the app observed the notification. After 15 seconds without an observed receipt, the status stays Sent. Provider/network errors show Not sent or a short error. The listener is removed after success, failure or timeout. No attendance event is created by a test.
+
+The test requires an installed native build with push credentials and permissions; Expo Go/browser previews show Use the installed app. The backend sends tests directly, so this button does not depend on the attendance worker. Regular attendance delivery still needs the worker. Restart Django and the worker after deploying this change. Staff verification rules are unchanged.
+
+Calendar and reports support All, App logins, and Device logins filters. The check-in method determines the login source. Calendar day details show individual sessions and saved app check-in/checkout map links. PDF reports include login source counts and respect the selected filter.

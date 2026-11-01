@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useSession } from '../session';
-import { DEFAULT_BACKEND_URL } from '../settings';
 import { Badge, Body, Button, Card, Column, ErrorText, Field, IconTile, Label, Row, Screen, Section, useAction } from '../ui';
 
 export default function Settings() {
@@ -11,12 +10,9 @@ export default function Settings() {
   const [confirmation, setConfirmation] = useState('');
   const [passwordSaved, setPasswordSaved] = useState(false);
   const passwordAction = useAction();
-  return <Screen><Section title="Your workspace, your way" detail="Manage the connection behind your attendance app." />
+  return <Screen><Section title="Your workspace, your way" detail="Manage your account and appearance." />
     <Card><Row><IconTile name="person-circle-outline" /><Column><Label>{username || 'Not signed in'}</Label><Body>{username ? 'Your attendance workspace' : 'Sign in to access your team'}</Body></Column></Row><Badge>Appearance · Follows your device</Badge></Card>
     {!username && <Button title="Back to sign in" variant="secondary" onPress={() => router.replace('/login')} />}
-    <Section title="Backend connection" /><Card>
-    <Field label="Backend URL" icon="globe-outline" value={api?.origin || DEFAULT_BACKEND_URL} editable={false} />
-    <Body>This address is configured when the app is built.</Body></Card>
     {username && <Card><Section title="Change password" detail="Enter your current password and choose a new one." />
       <Field label="Current password" value={oldPassword} onChangeText={setOldPassword} secureTextEntry autoComplete="current-password" editable={!passwordAction.busy} />
       <Field label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoComplete="new-password" editable={!passwordAction.busy} />

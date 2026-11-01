@@ -5,7 +5,7 @@ from attendance.push import dispatch_push
 
 
 class Command(BaseCommand):
-    help = "Deliver admin attendance pushes and check Expo receipts. Run one worker continuously."
+    help = "Deliver admin and personal staff attendance pushes and check Expo receipts. Run one worker continuously."
 
     def add_arguments(self, parser):
         parser.add_argument("--once", action="store_true", help="Process pending pushes once, then exit.")

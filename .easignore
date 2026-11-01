@@ -37,3 +37,4 @@ staff-app/android/
 
 # The admin build reads its public backend URL from this file.
 !mobile-app/.env
+!staff-app/.env

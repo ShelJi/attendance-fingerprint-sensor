@@ -53,7 +53,7 @@ export class Api {
       else if (data?.errors) message = Object.entries(data.errors).map(([field, errors]) =>
         `${field}: ${(errors as { message: string }[]).map(item => item.message).join(' ')}`).join('\n');
       else if (response.status === 403) message = 'CSRF verification failed. Sign in again to refresh your session.';
-      else if (response.status === 404) message = `Mobile API not found at ${this.origin}/api/mobile/${path.split('?')[0]}. Check the backend URL in Settings and deploy/restart the Django backend with the mobile API routes.`;
+      else if (response.status === 404) message = `Mobile API not found at ${this.origin}/api/mobile/${path.split('?')[0]}. Check EXPO_PUBLIC_API_URL in the project .env, rebuild the app, and deploy/restart the Django backend with the mobile API routes.`;
       if (response.status === 401 && path !== 'auth/login/') {
         if (this.sessionKey !== undefined) { this.sessionKey = null; await this.onSessionChange?.(null); }
         this.onUnauthorized?.();
@@ -68,7 +68,7 @@ export class Api {
     let data;
     try { data = await response.json(); }
     catch {
-      throw new ApiError(`The server returned an invalid JSON response for /api/mobile/${path.split('?')[0]}. Check the backend URL in Settings and deploy/restart the Django mobile API.`, response.status);
+      throw new ApiError(`The server returned an invalid JSON response for /api/mobile/${path.split('?')[0]}. Check EXPO_PUBLIC_API_URL in the project .env, rebuild the app, and deploy/restart the Django mobile API.`, response.status);
     }
     if (this.sessionKey !== undefined && path.startsWith('auth/') && 'session_key' in data) {
       this.sessionKey = data.session_key;

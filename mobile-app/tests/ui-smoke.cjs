@@ -86,7 +86,7 @@ const server = http.createServer((req, res) => {
     await page.getByText('Hello, Alex', { exact: true }).waitFor();
     await capture('overview-390');
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await page.getByRole('textbox', { name: 'Backend URL', exact: true }).waitFor();
+    assert.equal(await page.getByRole('textbox', { name: 'Backend URL', exact: true }).count(), 0);
     await page.getByLabel('Current password', { exact: true }).fill('test-only');
     await page.getByLabel('New password', { exact: true }).fill('new-strong-secret');
     await page.getByLabel('Confirm new password', { exact: true }).fill('different-secret');
@@ -175,7 +175,7 @@ const server = http.createServer((req, res) => {
       await capture(`${name}-large-text-320`);
     }
     await visit('/settings', 'Your workspace, your way');
-    assert.equal(await page.getByRole('textbox', { name: 'Backend URL', exact: true }).isEditable(), false);
+    assert.equal(await page.getByRole('textbox', { name: 'Backend URL', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Save backend URL', exact: true }).count(), 0);
     await visit('/', 'Hello, Alex');
     await page.getByRole('button', { name: 'Sign out', exact: true }).click();

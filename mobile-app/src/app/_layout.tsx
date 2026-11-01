@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SessionProvider, useSession } from '../session';
 import { Button, ErrorText, IconButton, Loading } from '../ui';
+import { typography } from '../design';
 import { useTheme } from '../theme';
 import { useAttendanceAlerts } from '../notifications';
 
@@ -10,8 +11,8 @@ function Navigation() {
   const { ready, username, api } = useSession();
   const { colors: c, isDark } = useTheme();
   const alerts = useAttendanceAlerts(username ? api : null);
-  if (!ready) return <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: c.background }}><Loading /></View>;
-  return <><StatusBar style={isDark ? 'light' : 'dark'} /><Stack screenOptions={{ headerTintColor: c.ink, headerStyle: { backgroundColor: c.background }, headerShadowVisible: false, headerTitleStyle: { fontWeight: '600' }, contentStyle: { backgroundColor: c.background } }}>
+  if (!ready) return <View style={{ flex: 1, justifyContent: 'center', padding: 16, backgroundColor: c.background }}><Loading /></View>;
+  return <><StatusBar style={isDark ? 'light' : 'dark'} /><Stack screenOptions={{ headerTintColor: c.ink, headerStyle: { backgroundColor: c.background }, headerShadowVisible: false, headerTitleStyle: typography.label, contentStyle: { backgroundColor: c.background } }}>
     <Stack.Protected guard={!username}><Stack.Screen name="login" options={{ title: 'PL admin', headerRight: () => <IconButton icon="settings-outline" label="Settings" onPress={() => router.push('/settings')} /> }} /></Stack.Protected>
     <Stack.Protected guard={!!username}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

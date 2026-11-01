@@ -50,6 +50,8 @@ def records_data(request):
     if mode not in ("", "office", "outdoor", "device"):
         raise ValidationError("Select all, office, outdoor, or device attendance.")
     events = events_query().filter(occurred_at__date__gte=start, occurred_at__date__lte=end)
+    if getattr(request, "personal_employee", None) is not None:
+        events = events.filter(session__employee=request.personal_employee)
     totals = {"office": 0, "outdoor": 0, "device": 0}
     totals.update({item["work_mode"]: item["total"] for item in events.values("work_mode").annotate(total=Count("id"))})
     if mode:
