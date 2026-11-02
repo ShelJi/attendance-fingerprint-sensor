@@ -161,6 +161,8 @@ GPS capture uses foreground `expo-location` permission only when requested. If p
 
 ## Notifications
 
+Step-by-step guides: [Firebase and EAS setup for both Android apps](../FIREBASE_SETUP.md) and [cPanel server cron job](../SERVER_CRON_JOB.md). Includes package names, dependency installation, the two JSON files, APK rebuilds, empty-log explanations and delivery examples.
+
 PL admin registers an Expo push token after sign-in and asks for notification permission. Attendance alerts use native phone notifications in both the foreground and background; there are no in-app attendance toasts. Web retains the activity history without native push. Existing events are skipped on first registration; repeated registration preserves pending events. Signing out unregisters devices for that login session. Expired/revoked sessions and accounts that lose management access stop receiving alerts.
 
 Expo Go can open the app, but push registration is skipped there so unsupported notification modules cannot crash navigation. Use a native development/preview build to test phone push delivery.

@@ -14,6 +14,8 @@ Employee attendance system with a Django web portal and API, a management mobile
 
 ## How it works
 
+For installed Android notifications, follow [Firebase setup](FIREBASE_SETUP.md), then [server cron job setup](SERVER_CRON_JOB.md). These guides cover both apps, the current cPanel paths, troubleshooting and worked examples.
+
 1. A manager creates an employee with a name, unique employee ID and unique fingerprint slot ID.
 2. The backend creates a linked login account. The employee ID is the username; new employees use initial password `12345` unless the manager enters a different password. Existing accounts keep their current passwords.
 3. An administrator configures office Wi-Fi and coordinates in **Dashboard → App configuration** (also available in PL admin and Django Admin → Office locations).
@@ -115,10 +117,12 @@ Migration `0006_officelocation_attendancenotification_and_more` adds office poli
 
 - **PL admin:** tap the bell on a main tab for Attendance activity. Choose All, Office, Outdoor or Device / legacy, change the date range, and page through records. Date defaults cover the whole current month.
 - **Website:** choose **Office & Outdoor** in the sidebar, or open `/web/work-attendance/`. The same separate views and submitted details are available.
-- **PL attendance:** employees see only their own attendance/evidence and receive toasts for their own accepted check-ins/outs, including scans made on the fingerprint reader.
-- **Management:** PL admin and the web dashboard receive attendance toasts for all employees. The durable log retains events for the management history view.
+- **PL attendance:** employees see only their own attendance/evidence and receive native notifications for their own accepted check-ins/outs, including scans made on the fingerprint reader.
+- **Management:** PL admin receives native attendance notifications for employees; the web dashboard uses in-page activity alerts. The durable log retains events for the management history view.
 
-Notifications mean **attendance check-in/out**, not account sign-in/sign-out. Apps poll while active every five seconds; web pages poll every fifteen seconds. Refreshes and five-minute cooldown attempts do not create duplicate events. Existing history is not replayed as toasts on a fresh app launch. These are in-app toasts, not background/closed-app push notifications.
+Notifications mean **attendance check-in/out**, not account sign-in/sign-out. Native push requires provider credentials, a rebuilt installed app, notification permission, signed-in device registration and one server delivery worker or cron job. First registration skips existing events. Web pages poll every fifteen seconds while visible. Refreshes and rejected cooldown attempts do not create new events.
+
+For example, an employee checks in after registering the rebuilt staff app. Django saves the event; the next cron run sends it through Expo and Firebase to registered phones. With one-minute cron, allow roughly a minute plus delivery time. A Settings test notification bypasses the attendance worker, so a successful test alone does not verify cron. See [Firebase examples](FIREBASE_SETUP.md#6-test-with-understandable-cases) and [cron examples](SERVER_CRON_JOB.md#5-test-with-real-examples).
 
 ## Deployment order
 
@@ -126,6 +130,7 @@ Notifications mean **attendance check-in/out**, not account sign-in/sign-out. Ap
 2. Run migrations on the deployed server and restart its application process.
 3. Configure active offices through Dashboard → App configuration and confirm employee accounts.
 4. Set both apps to that backend origin; rebuild installed apps for launcher branding and native permission changes.
+   Configure [Firebase and EAS credentials](FIREBASE_SETUP.md), then run one [attendance push worker or cPanel cron job](SERVER_CRON_JOB.md) for both apps.
 5. Test office matching, an incorrect Wi-Fi/location, outdoor submissions, fingerprint scans, role access, notifications and password changes on real phones.
 
 PL admin and PL attendance use the same supplied PL logo. Expo Go retains its own launcher identity; installed-app names/icons require a new native build. Signing credentials and production hosting configuration are not included.

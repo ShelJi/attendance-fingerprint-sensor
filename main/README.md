@@ -153,6 +153,8 @@ PL admin’s Reports screen also starts with a full-month explicit filter and us
 
 ## Notifications and delivery
 
+Deployment guides: [Firebase/EAS Android setup](../FIREBASE_SETUP.md) and [server worker and cPanel cron job](../SERVER_CRON_JOB.md), including the deployed paths, locking, logs and delivery examples.
+
 An accepted attendance check-in/out creates one `AttendanceNotification` per session/action. Signals cover the staff flow and fingerprint scans; the scan service runs in a transaction so a failed notification write rolls back that scan. Cooldowns and refreshes create no new event. Migration 0006 backfills older sessions, and unique constraints prevent duplicates.
 
 | Endpoint | Access / result |
@@ -163,9 +165,9 @@ An accepted attendance check-in/out creates one `AttendanceNotification` per ses
 
 The first feed request returns up to 20 recent events in ascending ID order and a cursor. It establishes the UI baseline without replaying old toasts. `?after=<cursor>` returns up to 100 newer events; use the returned cursor and continue while `has_more` is true. Management records and successful feed responses use `Cache-Control: private, no-store`.
 
-Staff sees immediate accepted-action toasts and polls for its own device events; its attendance status refreshes after a toast. PL admin polls every five seconds while active, and management web pages poll every fifteen seconds while visible. Toasts are queued and dismissible. Rejected attempts and account sign-in/sign-out are not attendance notifications.
+Native admin and staff apps register Expo push tokens after sign-in. One `send_attendance_push` worker delivers management alerts and each staff user's personal events; cPanel can instead schedule `send_attendance_push --once` with a lock. Management web pages poll every fifteen seconds while visible. Rejected attempts and account sign-in/sign-out are not attendance notifications.
 
-No OS push provider, push tokens or closed-app delivery is configured. History remains in the database; a fresh app launch does not replay it as toasts. There is no automatic event-retention expiry policy; deleting a session also deletes its notification rows where evidence protection permits that deletion.
+Android native delivery requires Firebase/EAS credentials, a rebuilt installed app, phone permission and an active registered login session. First push registration skips existing history. Settings test notifications send directly through the backend and do not exercise the attendance worker. History remains in the database. There is no automatic event-retention expiry policy; deleting a session also deletes its notification rows where evidence protection permits that deletion.
 
 ## Attendance and device behavior
 

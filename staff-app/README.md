@@ -1,5 +1,7 @@
 # PL attendance — personal staff app
 
+Setup guides: [Firebase and EAS for Android notifications](../FIREBASE_SETUP.md) and [server cron job on cPanel](../SERVER_CRON_JOB.md). Follow the staff-specific package and folder examples; each app needs its own installed dependencies and EAS credential assignment.
+
 The staff app includes the admin app’s personal attendance features: overview, profile and session history, monthly calendar with bottom refresh, reports and PDF sharing, Office/Outdoor activity with verification details, native phone notifications, saved login, password settings, 12-hour times, and device light/dark appearance. Office Wi-Fi/GPS verification and outdoor work descriptions remain available on Today.
 
 Every personal data endpoint derives the employee from the authenticated user. Staff cannot choose another employee through query parameters, URLs, or notification registration. Calendar counts, totals, session history, PDF contents, GPS/work evidence and phone notifications contain only that employee’s records. Existing management accounts keep their admin access. Staff have no people-management, employee creation, device-control or office-configuration screens or API access.
