@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "674586686361",
+    "project_id": "pl-admin-attendance",
+    "storage_bucket": "pl-admin-attendance.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674586686361:android:241d28a1e7a23cca06d908",
+        "android_client_info": {
+          "package_name": "com.shelj.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8njzCEjOmaOYENMgZ7SD2z92fCOdbv2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

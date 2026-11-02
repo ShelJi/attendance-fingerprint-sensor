@@ -1,3 +1,10 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+// EAS disables Expo's automatic dotenv loading during config evaluation.
+// Existing environment variables take precedence over the local file.
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) process.loadEnvFile(envPath);
 module.exports = ({ config }) => {
   const backend = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (!backend) throw new Error('Set EXPO_PUBLIC_API_URL in mobile-app/.env before building the app.');

@@ -38,6 +38,17 @@
       "expo-font",
       "expo-notifications",
       "expo-status-bar"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "6a776c40-ca46-4054-8dcf-dce9a37c940c"
+      }
+    },
+    "owner": "shelj"
   }
 }
