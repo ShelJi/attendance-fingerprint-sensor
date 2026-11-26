@@ -96,3 +96,30 @@ Settings now has **Test notification**. It registers the current phone, sends an
 The test requires an installed native build with push credentials and permissions; Expo Go/browser previews show Use the installed app. The backend sends tests directly, so this button does not depend on the attendance worker. Regular attendance delivery still needs the worker. Restart Django and the worker after deploying this change. Staff verification rules are unchanged.
 
 Calendar and reports support All, App logins, and Device logins filters. The check-in method determines the login source. Calendar day details show individual sessions and saved app check-in/checkout map links. PDF reports include login source counts and respect the selected filter.
+
+## Google Play release
+
+Run these commands from `staff-app`:
+
+```powershell
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npx expo-doctor@latest
+npx eas-cli@latest build --platform android --profile production
+```
+
+The production profile creates a signed Android App Bundle (`.aab`) for `com.attendance.staff`. EAS stores and automatically increments Android version codes; keep the existing signing key for all subsequent releases. If this package already exists in Play Console, initialize EAS remote versioning above its highest uploaded version code with `npx eas-cli@latest build:version:set --platform android --profile production`. Change `expo.version` in `app.json` for each user-visible release.
+
+Set `EXPO_PUBLIC_API_URL` to the deployed HTTPS backend in the EAS **production** environment (the local `.env` remains a fallback). The Firebase client file defaults to the checked-in `google-services.json`; an EAS file variable named `GOOGLE_SERVICES_JSON` overrides it. The Firebase client must match `com.attendance.staff`. FCM server credentials are configured separately in EAS; never commit a service-account private key.
+
+Download the AAB from the build page and upload the first release manually in Play Console. Complete the store listing, privacy-policy URL, Data safety and content-rating forms, and provide reviewer login instructions for this staff-only app. Describe the actual attendance, location and notification data handling. Test login, Wi-Fi/GPS verification, PDF sharing, and push notifications on a physical device before rollout.
+
+For later submissions, configure a Google Play service-account credential in EAS, then run:
+
+```powershell
+npx eas-cli@latest submit --platform android --profile production --latest
+```
+
+Submission targets the **internal** track as a **draft** for review in Play Console. It does not publish a public production rollout. Preview APK builds remain available with `--profile preview`. JavaScript over-the-air updates are not configured; changes are delivered through a new store build.
