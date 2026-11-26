@@ -73,6 +73,7 @@ OLED_SPI_BAUDRATE = 4000000
 OLED_WIDTH = 128
 OLED_HEIGHT = 64
 OLED_PADDING = 8
+OLED_LINE_SPACING = 4
 
 # ---------------- DISPLAY RESET ----------------
 DISPLAY_RESET_INTERVAL = 60
@@ -248,12 +249,14 @@ class SSD1309:
                 line = line[max_chars:]
             lines.append(line)
 
-        max_lines = (self.HEIGHT - 2 * OLED_PADDING) // 8
+        line_step = 8 + OLED_LINE_SPACING
+        max_lines = (self.HEIGHT - 2 * OLED_PADDING) // line_step
         lines = lines[:max_lines]
-        start_y = (self.HEIGHT - len(lines) * 8) // 2
+        text_height = (len(lines) - 1) * line_step + 7
+        start_y = (self.HEIGHT - text_height) // 2
         for line_index, line in enumerate(lines):
             cursor_x = (self.WIDTH - len(line) * 6) // 2
-            cursor_y = start_y + line_index * 8
+            cursor_y = start_y + line_index * line_step
             for character in line:
                 if character not in self.FONT:
                     cursor_x += 6
